@@ -1,0 +1,5 @@
+(library
+ (name bitgen)
+ (public_name bitgenerators)
+ (libraries stdint))
+
