@@ -1,0 +1,4 @@
+(executable
+ (public_name bitgenerators)
+ (name main)
+ (libraries bitgenerators))
