@@ -13,3 +13,4 @@ module SFC64 = Sfc.SFC64
 module PCG64 = Pcg.PCG64
 module SeedSequence = Seed.SeedSequence
 module Xoshiro256 = Xoshiro.Xoshiro256StarStar
+module Philox = Philox.Philox
