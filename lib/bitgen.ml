@@ -5,7 +5,7 @@ module type S = sig
     val next_uint64 :  t -> uint64 * t
     val next_uint32 : t -> uint32 * t
     val next_double : t -> float * t
-    val initialize : int -> t
+    val initialize : Seed.SeedSequence.t -> t
 end
 
 
