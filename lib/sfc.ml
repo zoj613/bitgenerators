@@ -5,7 +5,7 @@ module SFC64 : sig
     val next_uint64 :  t -> uint64 * t
     val next_uint32 : t -> uint32 * t
     val next_double : t -> float * t
-    val initialize : int -> t
+    val initialize : Seed.SeedSequence.t -> t
 end = struct
     (* last uint64 value is the counter *)
     type t = {s : state; has_uint32 : bool; uinteger : uint32}
@@ -57,7 +57,6 @@ end = struct
             has_uint32 = false;
             uinteger = Uint32.zero
         } in
-        let seedseq = Seed.SeedSequence.initialize [Int.to_string seed] in
-        let istate = Seed.SeedSequence.generate_64bit_state seedseq 3 in
-         set_seed t (istate.(0), istate.(1), istate.(2))
+        let istate = Seed.SeedSequence.generate_64bit_state 3 seed in
+        set_seed t (istate.(0), istate.(1), istate.(2))
 end
