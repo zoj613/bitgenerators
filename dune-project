@@ -5,11 +5,11 @@
 (generate_opam_files true)
 
 (source
- (github username/reponame))
+ (github zoj613/bitgenerators))
 
-(authors "Author Name")
+(authors "Zolisa Bleki")
 
-(maintainers "Maintainer Name")
+(maintainers "Zolisa Bleki")
 
 (license LICENSE)
 
@@ -17,9 +17,9 @@
 
 (package
  (name bitgenerators)
- (synopsis "A short synopsis")
- (description "A longer description")
- (depends ocaml dune integers base)
+ (synopsis "PRNG bitgenerators for OCaml users")
+ (description "PRNG bitgenerators for OCaml users")
+ (depends ocaml dune ctypes stdint)
  (tags
   (topics "to describe" your project)))
 

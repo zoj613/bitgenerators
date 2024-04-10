@@ -1,2 +1,2 @@
 # bitgenerators
-bitgenerators in OCaml
+Psuedo-Random number bitgenerators for OCaml users.
