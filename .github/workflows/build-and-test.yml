@@ -1,0 +1,49 @@
+name: CI
+
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash -l {0}
+
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+        ocaml-version:
+          - 4.14.2
+          - 5.1.1
+      fail-fast: false
+
+    name: Ocaml version - ${{ matrix.ocaml-version }} - ${{ matrix.os }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup-ocaml
+        uses: ocaml/setup-ocaml@v2
+        with:
+          ocaml-version: ${{ matrix.ocaml-version }}
+
+      - name: setup
+      - run: opam install . --deps-only --with-test
+
+      - name: build
+        run: opam exec -- dune build
+
+      - name: test
+        run: opam exec -- dune runtest
