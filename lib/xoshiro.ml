@@ -55,7 +55,7 @@ end = struct
         [| of_int 0x180ec6d33cfd0aba; of_string "0xd5a61266f0c9392c";
            of_string "0xa9582618e03fc9aa"; of_int 0x39abdc4529b1661c |])
 
-
+    [@@@ coverage off]
     let jump t =
         let rec loop b j acc st = match b >= 64 with
             | true -> acc, st 
@@ -74,6 +74,7 @@ end = struct
         let a, s = loop 0 jump.(1) a s in
         let a, s = loop 0 jump.(2) a s in
         {t with s = loop 0 jump.(3) a s |> fst}
+    [@@@ coverage on]
 
 
     let initialize seed =
