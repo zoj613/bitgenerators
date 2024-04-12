@@ -23,27 +23,34 @@ jobs:
         os:
           - macos-latest
           - ubuntu-latest
-          - windows-latest
-        ocaml-version:
-          - 4.14.2
-          - 5.1.1
+        ocaml-compiler:
+          - "5.1.1"
+          - "4.14.2"
       fail-fast: false
 
-    name: Ocaml version - ${{ matrix.ocaml-version }} - ${{ matrix.os }}
+    name: Ocaml version - ${{ matrix.ocaml-compiler }} - ${{ matrix.os }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: setup-ocaml
-        uses: ocaml/setup-ocaml@v2
+        uses: ocaml/setup-ocaml@master
         with:
-          ocaml-version: ${{ matrix.ocaml-version }}
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
 
       - name: setup
-      - run: opam install . --deps-only --with-test
+        run: |
+          opam install . --deps-only --with-test --yes
 
       - name: build
         run: opam exec -- dune build
 
       - name: test
-        run: opam exec -- dune runtest
+        run: opam exec -- dune runtest --instrument-with bisect_ppx --force
+
+      - name: Upload code coverage report
+        run: opam exec -- bisect-ppx-report send-to Codecov
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
