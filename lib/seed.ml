@@ -33,7 +33,7 @@ let u128_to_u32_list n =
     let rec loop i acc =
         if i <= Uint128.zero then
             (* reverse the output list to ensure correct order *)
-            if List.is_empty acc then [Uint32.zero] else List.rev acc
+            if List.compare_length_with acc 0 = 0 then [Uint32.zero] else List.rev acc
         else
             let u32 = Uint32.of_uint128 (Uint128.logand i mask32) in
             loop Uint128.(shift_right i 32) (u32 :: acc)
