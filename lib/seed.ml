@@ -1,3 +1,6 @@
+(* Copyright (c) 2024, Zolisa Bleki
+
+  SPDX-License-Identifier: BSD-3-Clause *)
 open Stdint
 
 (* Return an integer with 128 random bits by combining 2 integers with 64 random bits. *)
@@ -43,13 +46,56 @@ let to_uint32_list x =
 
 
 module SeedSequence : sig
+    (** SeedSequence mixes sources of entropy in a reproducible way to set the
+        initial state for independent and very probably non-overlapping BitGenerators.
+
+        Once the SeedSequence is initialized, one can call the
+        {!SeedSequence.generate_64bit_state} or {!SeedSequence.generate_32bit_state}
+        functions to get an appropriately sized seed that can be used to initialize
+        any of the supported PRNG's. Calling {!SeedSequence.spawn} will create
+        [n] SeedSequence's that can be used to seed independent BitGenerators.
+
+        Best practice for achieving reproducible bit streams is to use
+        the empty list as an initializing value, and then use {!SeedSequence.entropy}
+        to log the entropy for reproducibility:
+
+        {@ocaml[
+            open Bitgen
+            let ss = SeedSequence.initialize []
+            SeedSequence.entropy ss |> List.map Uint128.to_string
+            (*: string list = ["152280350332430215596244075920305924447"] *)
+        ]} *)
+
     type t
+    (** [t] is the type of a SeedSequence *)
+
     val initialize : ?spawn_key:int list -> ?pool_size:int -> uint128 list -> t
+    (** [initialize seed] Creates a new seed sequence type given a list of unsigned 128-bit
+        integers [seed]. [~spawn_key] is an additional source of entropy based on
+        the position of type in the tree of such types created with {!SeedSequence.spawn}.
+        Typically users need not set this parameter. [~pool_size] is the size of
+        the pooled entropy to store. It defaults to the value 4 to give a 128-bit
+         entropy pool. *)
+
     val generate_32bit_state : int -> t -> uint32 array
+    (** [generate_32bit_state n t] returns an array of [n] unsigned 32-bit integers for
+        seeding a PRNG and generating it's initial 32-bit state. *)
+
     val generate_64bit_state : int -> t -> uint64 array
+    (** [generate_64bit_state n t] returns an array of [n] unsigned 64-bit integers for
+        seeding a PRNG and generating it's initial state. *)
+
     val spawn : int -> t -> t list * t
+    (** [spawn n t] creates [n] independent child types of [t] that can be used
+        to initialize [n] bitgenerator instances. *)
+
     val children_spawned : t -> int
+    (** The number of children already spawned by this instance of a SeedSequence type. *)
+
     val entropy : t -> uint128 list
+    (** [entropy t] gives a list representing the entropy used to create [t]. It
+        can be used as an argument of {!SeedSequence.initialize} to reproduce the
+        the bit stream of [t]. *)
 end = struct
 
     type t = {

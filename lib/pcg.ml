@@ -1,15 +1,46 @@
+(* Copyright (c) 2024, Zolisa Bleki
+
+  SPDX-License-Identifier: BSD-3-Clause *)
 open Stdint
 
 
 module PCG64 : sig
+    (** PCG-64 is a 128-bit implementation of O'Neill's permutation congruential
+        generator. PCG-64 has a period of {m 2^{128}} and supports advancing an arbitrary
+        number of steps as well as {m 2^{127}} streams.
+
+        The specific member of the PCG family that we use is PCG XSL RR 128/64.
+        The PCG64 state vector consists of 2 unsigned 128-bit values. One is the
+        state of the PRNG, which is advanced by a linear congruential generator (LCG).
+        The second is a fixed odd increment used in the LCG.
+
+        The input seed is processed by {!SeedSequence} to generate both values. *)
+
     type t
+    (** [t] is the state of the PCG64 bitgenerator *)
+
     val next_uint64 :  t -> uint64 * t
+    (** Generate a random unsigned 64-bit integer and return a state of the
+        generator advanced by one step forward *)
+
     val next_uint32 : t -> uint32 * t
+    (** Generate a random unsigned 32-bit integer and return a state of the
+        generator advanced by one step forward *)
+
     val next_double : t -> float * t
+    (** Generate a random 64 bit float and return a state of the
+        generator advanced by one step forward *)
+
     val initialize : Seed.SeedSequence.t -> t
+    (** Get the initial state of the generator using a {!SeedSequence} type as input *)
+
     val advance : int128 -> t -> t
+    (** [advance delta] Advances the underlying RNG as if [delta] draws have been made.
+        The returned state is that of the generator [delta] steps forward. *)
+
     val next_bounded_uint64 : uint64 -> t -> uint64 * t
-    val set_seed : uint64 * uint64 * uint64 * uint64 -> t -> t
+    (** [next_bounded_uint64 bound t] returns an unsigned 64bit integers in the range
+        (0, bound) as well as the state of the generator advanced one step forward. *)
 end = struct
     type t = {s : setseq; has_uint32 : bool; uinteger : uint32}
     and setseq = {state : uint128; increment : uint128}

@@ -1,13 +1,63 @@
+(* Copyright (c) 2024, Zolisa Bleki
+
+  SPDX-License-Identifier: BSD-3-Clause *)
 open Stdint
 
 module Philox : sig
-    type t 
+    (** Philox64 is a 64-bit PRNG that uses a counter-based design based on weaker
+        (and faster) versions of cryptographic functions. Instances using different
+        values of the key produce independent sequences. Philox has a period of
+        {m 2^{256} - 1} and supports arbitrary advancing and jumping the sequence
+        in increments of {m 2^{128}}. These features allow multiple non-overlapping
+        sequences to be generated.
+
+        The Philox state vector consists of a 256-bit value encoded as a 4-element
+        unsigned 64-bit tuple and a 128-bit value encoded as a 2-element unsigned
+        64-bit tuple. The former is a counter which is incremented by 1 for every
+        4 64-bit randoms produced. The second is a key which determined the sequence
+        produced. Using different keys produces independent sequences.
+
+        {!SeedSequence} is used to produce a high-quality initial state for the
+        key vector. The counter is set to 0.
+
+        The preferred way to use Philox in parallel applications is to use
+        the {!SeedSequence.spawn} function to obtain entropy values, and to use these
+        to generate new instance of a Philox bitgenerator:
+        
+        {@ocaml[
+            open Bitgen
+            let gens =
+                SeedSequence.initialize []
+                |> SeedSequence.spawn 10
+                |> fst
+                |> List.map Philox64.initialize
+        ]} *)
+
+    type t
+    (** [t] is the state of the Philox64 bitgenerator *)
+
     val next_uint64 :  t -> uint64 * t
-    val next_uint32 : t -> uint32  * t
+    (** Generate a random unsigned 64-bit integer and return a state of the
+        generator advanced by one step forward *)
+
+    val next_uint32 : t -> uint32 * t
+    (** Generate a random unsigned 32-bit integer and return a state of the
+        generator advanced by one step forward *)
+
     val next_double : t -> float * t
+    (** Generate a random 64 bit float and return a state of the
+        generator advanced by one step forward *)
+
     val initialize : Seed.SeedSequence.t -> t
+    (** Get the initial state of the generator using a {!SeedSequence} type as input *)
+
     val initialize_ctr : counter:uint64 * uint64 * uint64 * uint64 -> Seed.SeedSequence.t -> t
+    (** Get the initial state of the generator using a 4-element unsigned 64-bit tuple as
+        the bitgenerator's [counter] initial state as well as {!SeedSequence.t} for the
+        initiale state of the generator's [key].*)
+
     val jump : t -> t
+    (** [jump t] is equivalent to {m 2^{128}} calls to {!Philox64.next_uint64}. *)
 
 end = struct
     type t = {
