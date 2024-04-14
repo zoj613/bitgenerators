@@ -5,9 +5,9 @@ description: "PRNG bitgenerators for OCaml users"
 maintainer: ["Zolisa Bleki"]
 authors: ["Zolisa Bleki"]
 license: "BSD-3-Clause"
-tags: ["topics" "to describe" "your" "project"]
+tags: ["scientific computing" "psuedo-random numbers"]
 homepage: "https://github.com/zoj613/bitgenerators"
-doc: "https://url/to/documentation"
+doc: "https://zoj613.github.io/bitgenerators/"
 bug-reports: "https://github.com/zoj613/bitgenerators/issues"
 depends: [
   "ocaml"

@@ -1,6 +1,7 @@
 open OUnit2
 open Stdint
 
+
 let uint32_of_uint64 x =
     let upper = Uint64.(shift_right x 32 |> to_uint32) in
     let lower = Uint64.(of_int 0xffffffff |> logand x |> to_uint32) in
@@ -10,10 +11,18 @@ let uint32_of_uint64 x =
 let uniform_of_uint64 x =
      Uint64.(shift_right x 11 |> to_string |> Float.of_string) *. (1.0 /. 9007199254740992.0) |> Float.to_string
 
+
+module type S = sig
+    type t 
+    val next_uint64 :  t -> uint64 * t
+    val next_uint32 : t -> uint32 * t
+    val next_double : t -> float * t
+    val initialize : Bitgen.SeedSequence.t -> t
+end
 (* This tests the correctness of a bitgenerator's implementation against groundtruth data for a given seed.
    This function takes the module representing the bitgenerator as well as the path to the CSV file
    containing the groundtruth data. The data is sourced from numpy's random module test suite. *)
-let bitgen_groundtruth (module M : Bitgen.S) file =
+let bitgen_groundtruth (module M : S) file =
     (* Draw a random 64 bit integer n times from Bitgenerator M. *)
     let rec loop i t acc n = match i >= n with
         | true -> List.rev acc

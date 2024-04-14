@@ -11,9 +11,9 @@
 
 (maintainers "Zolisa Bleki")
 
-(license LICENSE)
+(license BSD-3-Clause)
 
-(documentation https://url/to/documentation)
+(documentation https://zoj613.github.io/bitgenerators/)
 
 (package
  (name bitgenerators)
@@ -21,6 +21,6 @@
  (description "PRNG bitgenerators for OCaml users")
  (depends ocaml dune ctypes stdint)
  (tags
-  (topics "to describe" your project)))
+  ("scientific computing" "psuedo-random numbers")))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project

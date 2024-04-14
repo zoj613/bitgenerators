@@ -1,13 +1,46 @@
+(* Copyright (c) 2024, Zolisa Bleki
+
+  SPDX-License-Identifier: BSD-3-Clause *)
 open Stdint
 
 module Xoshiro256StarStar : sig
-    type t 
-    val next_uint64 :  t -> uint64 * t
-    val next_uint32 : t -> uint32  * t
-    val next_double : t -> float * t
-    val initialize : Seed.SeedSequence.t -> t
-    val jump : t -> t
+    (** Xoshiro256** is a 64-bit PRNG that uses a carefully constructed linear transformation.
+        This produces a fast PRNG with excellent statistical quality. Xoshiro256**
+        has a period of {m 2^{256} - 1} and supports jumping the sequence in increments
+        of {m 2^{128}}  which allows multiple non-overlapping subsequences to be generated.
+        
+        The Xoshiro256 state consists of a 4-element tuple of 64-bit unsigned integers.
+        Xoshiro256 is seeded using either a vector of 64-bit unsigned integers.
+        The {!SeedSequence} module is used to generate the required 4 values as
+        initial state.
 
+        Xoshiro256 can be used in parallel applications by calling the
+        method {!Xoshiro256.jump} function which advances the state as-if {m 2^{128}}
+        random numbers have been generated. This allows the original sequence to be split
+        so that distinct segments can be used in each worker process.*)
+
+    type t 
+    (** [t] is the state of the Xoshiro256** bitgenerator *)
+
+    val next_uint64 :  t -> uint64 * t
+    (** Generate a random unsigned 64-bit integer and return a state of the
+        generator advanced by one step forward *)
+
+    val next_uint32 : t -> uint32 * t
+    (** Generate a random unsigned 32-bit integer and return a state of the
+        generator advanced by one step forward *)
+
+    val next_double : t -> float * t
+    (** Generate a random 64 bit float and return a state of the
+        generator advanced by one step forward *)
+
+    val initialize : Seed.SeedSequence.t -> t
+    (** Get the initial state of the generator using a {!SeedSequence} type as input *)
+
+    val jump : t -> t
+    (** [jump t] is equivalent to {m 2^{128}} calls to {!Xoshiro256.next_uint64};
+        it can be used to generate {m 2^{128}} non-overlapping subsequences for
+        parallel computations. *)
 end = struct
 
     type t = {s : state; has_uint32 : bool; uinteger : uint32}

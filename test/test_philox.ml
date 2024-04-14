@@ -4,10 +4,10 @@ open Bitgen
 
 let test_philox_datasets _ =
     Testconf.bitgen_groundtruth
-        (module Philox)
+        (module Philox64)
         (Sys.getcwd () ^ "/../../../test/data/philox-testset-1.csv");
     Testconf.bitgen_groundtruth
-        (module Philox)
+        (module Philox64)
         (Sys.getcwd () ^ "/../../../test/data/philox-testset-2.csv")
 
 
