@@ -42,7 +42,7 @@ jobs:
 
       - name: setup
         run: |
-          opam install . --deps-only --with-test --yes
+          opam install . --deps-only --with-test --with-doc --yes
 
       - name: build
         run: opam exec -- dune build
@@ -54,3 +54,18 @@ jobs:
         run: opam exec -- bisect-ppx-report send-to Codecov
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Build Docs
+        run: opam exec -- dune build @doc
+
+      - name: Upload API Docs artifact
+        uses: actions/upload-artifact@v3.1.3
+        with:
+          name: docs
+          path: ./_build/default/_doc/_html
+
+      - name: Deploy API Docs
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_build/default/_doc/_html
