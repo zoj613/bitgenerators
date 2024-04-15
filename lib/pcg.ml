@@ -83,7 +83,7 @@ end = struct
         let i = Uint128.(logor (shift_left (of_uint64 ihi) 64) (Uint64.to_uint128 ilo)) in
         {t with s = next_setseq s i}
 
-
+    (* https://www.pcg-random.org/posts/bounded-rands.html *)
     let next_bounded_uint64 bound t =
         let rec loop threshold = function
             | r, s when r >= threshold -> s, r
