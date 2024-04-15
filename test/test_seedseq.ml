@@ -75,12 +75,20 @@ let test_zero_padding _ =
     assert_equal
         (generate_32bit_state 4 (initialize [Uint128.of_int 42]))
         (generate_32bit_state 4 (initialize [42 lsl 32 |> Uint128.of_int]))
+        ~cmp:(fun x y -> x <> y);
+    (* Ensure that the implicit 0s don't conflict with spawn keys. *)
+    assert_equal
+        (generate_32bit_state 4 (initialize [Uint128.of_int 42]))
+        (generate_32bit_state 4 (initialize ~spawn_key:[0] [Uint128.of_int 42]))
         ~cmp:(fun x y -> x <> y)
 
 
 let test_spawn_children _ =
     let open Bitgen.SeedSequence in
-    assert_equal (initialize [] |> spawn 10 |> fst |> List.length) 10
+    let children, t = initialize [] |> spawn 10 in
+    assert_bool "children_spawned not equal to 10" (List.length children = 10);
+    assert_bool "children_spawned not equal to 10" (children_spawned t = 10);
+    assert_bool "child entropy not equal parent's" (entropy t = entropy (List.hd children))
 
 
 let tests = [

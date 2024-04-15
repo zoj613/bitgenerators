@@ -6,6 +6,7 @@ module Philox : sig
     val next_uint32 : t -> uint32  * t
     val next_double : t -> float * t
     val initialize : Seed.SeedSequence.t -> t
+    val initialize_ctr : counter:uint64 * uint64 * uint64 * uint64 -> Seed.SeedSequence.t -> t
     val jump : t -> t
 
 end = struct
@@ -92,12 +93,21 @@ end = struct
         match Uint64.(c2' = zero) with
         | true -> {t with ctr = (c0, c1, c2', Uint64.(c3 + one))}
         | false -> {t with ctr = (c0, c1, c2', c3)}
-        [@@ coverage off]
 
 
     let initialize seed =
         let istate = Seed.SeedSequence.generate_64bit_state 2 seed in
         {ctr = Uint64.(zero, zero, zero, zero);
+         buffer = Array.make 4 Uint64.zero;
+         key = (istate.(0), istate.(1));
+         uinteger = Uint32.zero;
+         has_uint32 = false;
+         buffer_pos = 4}
+
+
+    let initialize_ctr ~counter seed =
+        let istate = Seed.SeedSequence.generate_64bit_state 2 seed in
+        {ctr = counter;
          buffer = Array.make 4 Uint64.zero;
          key = (istate.(0), istate.(1));
          uinteger = Uint32.zero;
