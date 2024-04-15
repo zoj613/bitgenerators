@@ -65,7 +65,6 @@ end = struct
         in
         {t with s = loop 0 jump.(0) (Uint64.(zero, zero, zero, zero), t.s)
          |> loop 0 jump.(1) |> loop 0 jump.(2) |> loop 0 jump.(3) |> fst}
-    [@@coverage off]
 
 
     let initialize seed =
