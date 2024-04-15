@@ -13,7 +13,7 @@
 
 (license BSD-3-Clause)
 
-(documentation https://zoj613.github.io/bitgenerators/)
+(documentation https://zoj613.github.io/bitgenerators/bitgenerators/Bitgen/index.html)
 
 (package
  (name bitgenerators)
