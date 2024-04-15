@@ -24,12 +24,10 @@ let test_bounded_u64 _ =
             let u, t' = PCG64.next_bounded_uint64 b t in
             loop (i + 1) t' b ((u < b) :: acc) n
     in
-    let init seed =
-        SeedSequence.initialize [Uint128.of_int seed] |> PCG64.initialize
-    in
+    let t = SeedSequence.initialize [Uint128.of_int 12345] |> PCG64.initialize in
     List.iter
-        (fun b -> assert_equal true (loop 0 (init b) (Uint64.of_int b) [] 1000))
-        [1; 100; 1000; 10_0000; 10_000_000]
+        (fun b -> assert_equal true (loop 0 t (Uint64.of_int b) [] 1000))
+        [1; 1000; 4193609425186963870]
 
 
 let test_pcg_datasets _ =
