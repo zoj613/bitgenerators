@@ -1,6 +1,6 @@
 open OUnit2
 open Bitgen
- 
+
 
 let test_xoshiro_datasets _ =
     Testconf.bitgen_groundtruth

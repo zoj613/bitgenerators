@@ -12,14 +12,10 @@ end = struct
     and state = uint64 * uint64 * uint64 * uint64
 
 
-    let rotate_left value rot =
-        Uint64.((-rot) land 63 |> shift_right value |> logor (shift_left value rot))
-
-
     let next (w, x, y, z) =
-        let uint = Uint64.(w + x + z) in
-        uint, Uint64.(shift_right x 11 |> logxor x, y + shift_left y 3,
-         rotate_left y 24 + uint, z + one)
+        let uint = Uint64.(w + x + z)
+        and y' = Uint64.(logor (shift_left y 24) (shift_right y 40)) in
+        uint, Uint64.(shift_right x 11 |> logxor x, y + shift_left y 3, y' + uint, z + one)
 
 
     let next_uint64 t =
@@ -47,16 +43,14 @@ end = struct
     let set_seed t (w, x, y) =
         let rec loop s' = function
             | 0 -> s'
-            | i -> loop (next s' |> snd) (i - 1) in
+            | i -> loop (next s' |> snd) (i - 1)
+        in
         {t with s = loop (w, x, y, Uint64.one) 12}
 
 
     let initialize seed =
-        let t = {
-            s = Uint64.(zero, zero, zero, zero);
-            has_uint32 = false;
-            uinteger = Uint32.zero
-        } in
         let istate = Seed.SeedSequence.generate_64bit_state 3 seed in
-        set_seed t (istate.(0), istate.(1), istate.(2))
+        set_seed
+            {s = Uint64.(zero, zero, zero, zero); has_uint32 = false; uinteger = Uint32.zero}
+            (istate.(0), istate.(1), istate.(2))
 end

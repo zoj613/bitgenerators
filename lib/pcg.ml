@@ -1,18 +1,6 @@
 open Stdint
 
 
-module type Sig = sig
-    type t
-    val next_uint64 :  t -> uint64 * t
-    val next_uint32 : t -> uint32 * t
-    val next_double : t -> float * t
-    val initialize : Seed.SeedSequence.t -> t
-    val advance : int128 -> t -> t
-    val next_bounded_uint64 : uint64 -> t -> uint64 * t
-    val set_seed : uint64 * uint64 * uint64 * uint64 -> t -> t
-end
-
-
 module PCG64 : sig
     type t
     val next_uint64 :  t -> uint64 * t
@@ -43,8 +31,8 @@ end = struct
     let next_setseq initstate initseq =
         let open Uint128 in
         let increment = shift_left initseq 1 |> logor one in
-        let setseq = {state = zero * multiplier + increment; increment} in
-        {state = (setseq.state + initstate) * multiplier + increment; increment}
+        let state = zero * multiplier + increment in
+        {state = (state + initstate) * multiplier + increment; increment}
 
 
     let next_uint64 t =
@@ -74,23 +62,18 @@ end = struct
 
     let advance_state_lcg {state; increment} delta mult =
         let open Uint128 in
-        let rec loop d am ap cm cp = match Int128.(d <= zero) with
-            | true -> am, ap
-            | false ->
-                let am', ap' = match Int128.((logand d one) = one) with
-                    | true -> am * cm, ap * cm + cp
-                    | false -> am, ap in
-                let cp' = (cm + one) * cp in
-                let cm' = cm * cm in
-                let d' = Int128.(shift_right d 1) in
-                loop d' am' ap' cm' cp'
+        let rec loop d am ap cm cp =
+            match d = zero, logand d one = one with
+            | true, _ -> am, ap
+            | false, true -> loop (shift_right d 1) (am * cm) (ap * cm + cp) (cm * cm) (cp * (cm + one))
+            | false, false -> loop (shift_right d 1) am ap (cm * cm) (cp * (cm + one))
         in
         let am, ap = loop delta one zero mult increment in
         am * state + ap
 
 
     let advance delta t =
-        {s = {t.s with state = advance_state_lcg t.s delta multiplier};
+        {s = {t.s with state = advance_state_lcg t.s (Uint128.of_int128 delta) multiplier};
          has_uint32 = false;
          uinteger = Uint32.zero}
 
@@ -102,9 +85,9 @@ end = struct
 
 
     let next_bounded_uint64 bound t =
-        let rec loop t = function
-            | r, s when r >= t -> s, r
-            | _, s -> loop t (next s)
+        let rec loop threshold = function
+            | r, s when r >= threshold -> s, r
+            | _, s -> loop threshold (next s)
         in
         let setseq', r' = loop (Uint64.rem (Uint64.neg bound) bound) (next t.s) in
         Uint64.rem r' bound, {t with s = setseq'} 
