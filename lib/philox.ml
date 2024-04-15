@@ -9,7 +9,6 @@ module Philox : sig
     val jump : t -> t
 
 end = struct
-
     type t = {
         ctr : counter;
         key: key;
@@ -34,8 +33,7 @@ end = struct
     let round (c0, c1, c2, c3) (k0, k1) =
         let hi0, lo0 = mulhilo64 (Uint64.of_string "0xD2E7470EE14C6C93") c0 in
         let hi1, lo1 = mulhilo64 (Uint64.of_string "0xCA5A826395121157") c2 in
-        Uint64.(logxor hi1 c1 |> logxor k0, lo1,
-                logxor hi0 c3 |> logxor k1, lo0)
+        Uint64.(logxor hi1 c1 |> logxor k0, lo1, logxor hi0 c3 |> logxor k1, lo0)
 
 
     let ten_rounds ctr key =
@@ -50,19 +48,11 @@ end = struct
 
     let next (c0, c1, c2, c3) =
         let open Uint64 in
-        let c0' = c0 + one in
-        if c0' = zero then
-            let c1' = c1 + one in
-            if c1' = zero then
-                let c2' = c2 + one in
-                if c2' = zero then
-                    (c0', c1', c2', c3 + one)
-                else
-                    (c0', c1', c2', c3)
-            else
-                (c0', c1', c2, c3)
-        else 
-            (c0', c1, c2, c3)
+        match c0 + one = zero, c1 + one = zero, c2 + one = zero with
+        | true, true, true -> (c0 + one, c1 + one, c2 + one, c3 + one)
+        | true, true, false -> (c0 + one, c1 + one, c2 + one, c3)
+        | true, false, false -> (c0 + one, c1 + one, c2, c3)
+        | _, _, _ -> (c0 + one, c1, c2, c3)
 
 
     let to_array (c0, c1, c2, c3) = [| c0; c1; c2; c3 |]
@@ -75,12 +65,11 @@ end = struct
             let ctr' = next t.ctr in
             let buf = ten_rounds ctr' t.key |> to_array in
             buf.(0), {t with ctr = ctr'; buffer = buf; buffer_pos = 1}
-     
+
 
     let next_uint32 t =
         match t.has_uint32 with
-        | true ->
-            t.uinteger, {t with has_uint32 = false}
+        | true -> t.uinteger, {t with has_uint32 = false}
         | false ->
             let uint, t' = next_uint64 t in
             Uint64.(of_int 0xffffffff |> logand uint |> to_uint32),
@@ -101,8 +90,9 @@ end = struct
         let c0, c1, c2, c3 = t.ctr in
         let c2' = Uint64.(c2 + one) in
         match Uint64.(c2' = zero) with
-        | true -> {t with ctr = (c0, c1, c2', Uint64.(c2' + one))}
+        | true -> {t with ctr = (c0, c1, c2', Uint64.(c3 + one))}
         | false -> {t with ctr = (c0, c1, c2', c3)}
+        [@@ coverage off]
 
 
     let initialize seed =

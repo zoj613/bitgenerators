@@ -33,8 +33,7 @@ end = struct
 
     let next_uint32 t =
         match t.has_uint32 with
-        | true ->
-            t.uinteger, {t with has_uint32 = false}
+        | true -> t.uinteger, {t with has_uint32 = false}
         | false ->
             let uint, s' = next t.s in
             Uint64.(of_int 0xffffffff |> logand uint |> to_uint32),
@@ -55,32 +54,23 @@ end = struct
         [| of_int 0x180ec6d33cfd0aba; of_string "0xd5a61266f0c9392c";
            of_string "0xa9582618e03fc9aa"; of_int 0x39abdc4529b1661c |])
 
-    [@@@ coverage off]
-    let jump t =
-        let rec loop b j acc st = match b >= 64 with
-            | true -> acc, st 
-            | false ->
-                let acc' = match Uint64.(logand j (shift_left one b) > zero) with
-                    | true ->
-                        let a0, a1, a2, a3 = acc in
-                        let s0, s1, s2, s3 = st in
-                        Uint64.(logxor a0 s0, logxor a1 s1,
-                                logxor a2 s2, logxor a3 s3)
-                    | false -> acc
-                in
-                loop (b + 1) j acc' (next st |> snd)
+
+    let jump t = 
+        let map2 f (x0, x1, x2, x3) (y0, y1, y2, y3) = (f x0 y0, f x1 y1, f x2 y2, f x3 y3) in
+        let rec loop b j (acc, st) =
+            match b >= 64, Uint64.(logand j (shift_left one b) > zero) with
+            | true, _ -> acc, st 
+            | false, true -> loop (b + 1) j (map2 Uint64.logxor acc st, (next st |> snd))
+            | false, false -> loop (b + 1) j (acc, (next st |> snd))
         in
-        let a, s = loop 0 jump.(0) Uint64.(zero, zero, zero, zero) t.s in
-        let a, s = loop 0 jump.(1) a s in
-        let a, s = loop 0 jump.(2) a s in
-        {t with s = loop 0 jump.(3) a s |> fst}
-    [@@@ coverage on]
+        {t with s = loop 0 jump.(0) (Uint64.(zero, zero, zero, zero), t.s)
+         |> loop 0 jump.(1) |> loop 0 jump.(2) |> loop 0 jump.(3) |> fst}
+    [@@coverage off]
 
 
     let initialize seed =
-        let t = {s = Uint64.(zero, zero, zero, zero);
-                 has_uint32 = false;
-                 uinteger = Uint32.zero} in
         let istate = Seed.SeedSequence.generate_64bit_state 4 seed in
-        {t with s = (istate.(0), istate.(1), istate.(2), istate.(3))}
+        {s = (istate.(0), istate.(1), istate.(2), istate.(3));
+         has_uint32 = false;
+         uinteger = Uint32.zero}
 end

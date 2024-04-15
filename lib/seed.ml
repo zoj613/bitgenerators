@@ -2,8 +2,7 @@ open Stdint
 
 (* Return an integer with 128 random bits by combining 2 integers with 64 random bits. *)
 let randbits128 () =
-    let x = Int64.abs (Random.bits64 ())
-    and y = Int64.abs (Random.bits64 ()) in
+    let x = Int64.abs (Random.bits64 ()) and y = Int64.abs (Random.bits64 ()) in
     Uint128.(logor (shift_left (of_int64 x) 64) (of_int64 y))
 
 
@@ -30,13 +29,11 @@ let mix x y =
 let mask32 = Uint128.of_int 0xFFFFFFFF
 (* Convert an unsigned 128bit integer into a list of unsigned 32 bit integers *)
 let u128_to_u32_list n =
-    let rec loop i acc =
-        if i <= Uint128.zero then
-            (* reverse the output list to ensure correct order *)
-            if List.compare_length_with acc 0 = 0 then [Uint32.zero] else List.rev acc
-        else
-            let u32 = Uint32.of_uint128 (Uint128.logand i mask32) in
-            loop Uint128.(shift_right i 32) (u32 :: acc)
+    let rec loop i acc = match i = Uint128.zero with
+        | true when List.compare_length_with acc 0 = 0 -> [Uint32.zero]
+        | true -> List.rev acc
+        | false ->
+            loop Uint128.(shift_right i 32) (Uint32.of_uint128 (Uint128.logand i mask32) :: acc)
     in
     loop n []
 
@@ -69,55 +66,37 @@ end = struct
     let init_a = Uint32.of_int 0x43b0d7e5
 
     let mix_entropy entropy pool_size = 
-        let rec loop i mixer const =
-            if i >= pool_size then
-                mixer, const
-            else if i < Array.length entropy then
-                let v, const' = hashmix entropy.(i) const in
-                mixer.(i) <- v;
-                loop (i + 1) mixer const'
-            else
-                let v, const' = hashmix Uint32.zero const in
-                mixer.(i) <- v;
-                loop (i + 1) mixer const'
+        let rec loop i acc const = match i >= pool_size, i < Array.length entropy with
+            | true, _ -> List.rev acc |> Array.of_list, const
+            | false, true -> (match hashmix entropy.(i) const with
+                | v, const' -> loop (i + 1) (v :: acc) const')
+            | false, _ -> match hashmix Uint32.zero const with
+                | v, const' -> loop (i + 1) (v :: acc) const'
         in
-        let mixer, const = loop 0 (Array.make pool_size Uint32.zero) init_a
-        in
-        let rec inner i k mixer const =
-            if i >= pool_size then
-                mixer, const
-            else if i = k then
-                inner (i + 1) k mixer const
-            else
+        let rec inner i k mixer const = match i >= pool_size with
+            | true -> mixer, const
+            | false when i = k -> inner (i + 1) k mixer const
+            | false ->
                 let v, const' = hashmix mixer.(k) const in
                 mixer.(i) <- mix mixer.(i) v;
                 inner (i + 1) k mixer const'
         in
-        let rec outer j mixer const =
-            if j >= pool_size then
-                mixer, const
-            else
-                let mixer', const' = inner 0 j mixer const in
-                outer (j + 1) mixer' const'
+        let rec outer j (mixer, const) = match j >= pool_size with
+            | true -> mixer, const
+            | false -> outer (j + 1) (inner 0 j mixer const)
         in
-        let mixer, const = outer 0 mixer const
-        in
-        let rec inner i k mixer const =
-            if i >= pool_size then
-                mixer, const
-            else
+        let rec inner2 i k mixer const = match i >= pool_size with
+            | true -> mixer, const
+            | false ->
                 let v, const' = hashmix entropy.(k) const in
                 mixer.(i) <- mix mixer.(i) v;
-                inner (i + 1) k mixer const'
+                inner2 (i + 1) k mixer const'
         in
-        let outer j mixer const =
-            if j >= Array.length entropy then
-                mixer, const
-            else
-                let mixer', const' = inner 0 j mixer const in
-                outer (j + 1) mixer' const'
+        let rec outer2 j (mixer, const) = match j >= Array.length entropy with
+            | true -> mixer, const
+            | false -> outer2 (j + 1) (inner2 0 j mixer const)
         in
-        outer pool_size mixer const |> fst
+        (loop 0 [] init_a) |> outer 0 |> outer2 pool_size |> fst
 
 
     let assembled_entropy entropy spawn_key pool_size =
@@ -146,10 +125,9 @@ end = struct
 
 
     let spawn n t =
-        let rec loop i acc =
-            if i >= (t.children_spawned + n) then
-                acc
-            else
+        let rec loop i acc = match i >= (t.children_spawned + n) with
+            | true -> acc
+            | false ->
                 let spawn_key = t.spawn_key @ [Uint128.of_int i] in
                 let pool_size = Array.length t.pool in
                 let e = assembled_entropy t.entropy spawn_key pool_size in
@@ -168,30 +146,28 @@ end = struct
     let generate_32bit_state n_words t =
         (* Get next value of a cyclic sequence, aka cycling over a list of values. *)
         let next c = Seq.uncons c |> Option.get in
-        let rec loop i state cycle const =
-            if i >= n_words then
-                List.rev state |> Array.of_list
-            else
+        let rec loop i state cycle const = match i >= n_words with
+            | true -> List.rev state |> Array.of_list
+            | false ->
                 let data, cycle' = next cycle in
                 let data = Uint32.(logxor data const) in
                 let const = Uint32.(const * mult_b) in
                 let data = Uint32.(data * const) in
                 let data = Uint32.(logxor (shift_right data xshift) data) in
-                loop (i + 1) (data::state) cycle' const
+                loop (i + 1) (data :: state) cycle' const
         in
         loop 0 [] (Array.to_seq t.pool |> Seq.cycle) init_b
 
 
     let generate_64bit_state n_words t =
         (* 64 bit state array is obtained by combining elements i and (i + 1)
-           of the out32 to create a 64 bit integer using the formula
-           out32.(k + 1) << 32 | out32.(k), where k = i * 2 for i = 0, 1, ..., N
-           for N = length of out32 array. *)
+           of the [o] array to create a 64 bit integer using the formula
+           o.(k + 1) << 32 | o.(k), where k = i * 2 for i = 0, 1, ..., N
+           for N = length of the [o] array. *)
         let o = generate_32bit_state (n_words * 2) t |> Array.map Uint64.of_uint32 in
-        let rec to_uint64_array i state =
-            if i >= n_words then
-                List.rev state |> Array.of_list
-            else
+        let rec to_uint64_array i state = match i >= n_words with
+            | true -> List.rev state |> Array.of_list
+            | false ->
                 let k = i * 2 in
                 let v = Uint64.logor (Uint64.shift_left o.(k + 1) 32) o.(k) in
                 to_uint64_array (i + 1) (v::state)
