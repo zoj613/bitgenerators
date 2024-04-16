@@ -1,4 +1,6 @@
-(* Copyright (c) 2024, Zolisa Bleki
+(* Copyright 2014 Melissa O'Neill <oneill@pcg-random.org>
+   Copyright 2015 Robert Kern <robert.kern@gmail
+   Copyright (c) 2024, Zolisa Bleki
 
   SPDX-License-Identifier: BSD-3-Clause *)
 open Stdint
