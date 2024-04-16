@@ -2,6 +2,8 @@
 
 (name bitgenerators)
 
+(version v0.1.0)
+
 (generate_opam_files true)
 
 (source
@@ -18,8 +20,17 @@
 (package
  (name bitgenerators)
  (synopsis "PRNG bitgenerators for OCaml users")
- (description "PRNG bitgenerators for OCaml users")
- (depends ocaml dune ctypes stdint)
+ (description "A purely functional port of numpy's random bitgenerator interface for OCaml users")
+ (depends
+   (ocaml (>= 4.14.0))
+   dune
+   ctypes
+   stdint
+   (odoc :with-doc)
+   (bisect_ppx
+     (and :dev (>= 2.5.0) :with-test))
+   (ounit2 :with-test)
+   (csv :with-test))
  (tags
   ("scientific computing" "psuedo-random numbers")))
 
