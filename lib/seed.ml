@@ -1,4 +1,6 @@
-(* Copyright (c) 2024, Zolisa Bleki
+(* Copyright (c) 2015 Melissa E. O'Neill
+   Copyright (c) 2019 NumPy Developers
+   Copyright (c) 2024, Zolisa Bleki
 
   SPDX-License-Identifier: BSD-3-Clause *)
 open Stdint

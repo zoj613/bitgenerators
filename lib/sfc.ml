@@ -1,4 +1,5 @@
-(* Copyright (c) 2024, Zolisa Bleki
+(* Copyright (c) 2018 Melissa E. O'Neill
+   Copyright (c) 2024, Zolisa Bleki
 
   SPDX-License-Identifier: BSD-3-Clause *)
 open Stdint

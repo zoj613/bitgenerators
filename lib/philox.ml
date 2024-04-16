@@ -1,4 +1,5 @@
-(* Copyright (c) 2024, Zolisa Bleki
+(* Copyright 2010-2012, D. E. Shaw Research. All rights reserved.
+   Copyright (c) 2024, Zolisa Bleki
 
   SPDX-License-Identifier: BSD-3-Clause *)
 open Stdint
