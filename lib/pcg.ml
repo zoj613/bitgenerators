@@ -51,9 +51,10 @@ end = struct
 
     (* Uses the XSL-RR output function *)
     let output state =
-        let v = Uint128.(shift_right state 64 |> logxor state |> Uint64.of_uint128) in
-        let r = Uint128.(shift_right state 122 |> to_int) in
-        Uint64.((-r) land 63 |> shift_left v |> logor (shift_right v r))
+        let v = Uint128.(shift_right state 64 |> logxor state |> Uint64.of_uint128)
+        and r = Uint128.(shift_right state 122 |> to_int) in
+        let nr = Uint32.(of_int r |> neg |> logand (of_int 63) |> to_int) in
+        Uint64.(logor (shift_left v nr) (shift_right v r))
 
 
     let next {state; increment} =
