@@ -72,9 +72,9 @@ end = struct
     and key = uint64 * uint64
 
 
-    let bumpkey (x, y) =
-        Uint64.(x + Uint64.of_string "0x9E3779B97F4A7C15",
-                y + Uint64.of_string "0xBB67AE8584CAA73B")
+    let bumpk0 = Uint64.of_string "0x9E3779B97F4A7C15"
+    and bumpk1 = Uint64.of_string "0xBB67AE8584CAA73B"
+    let bumpkey (x, y) = Uint64.(x + bumpk0, y + bumpk1)
 
 
     let mulhilo64 a b =
@@ -82,10 +82,12 @@ end = struct
         Uint128.(shift_right p 64 |> to_uint64, to_uint64 p)
 
 
+    let rh0 =Uint64.of_string "0xD2E7470EE14C6C93"
+    and rh1 = Uint64.of_string "0xCA5A826395121157"
     let round (c0, c1, c2, c3) (k0, k1) =
-        let hi0, lo0 = mulhilo64 (Uint64.of_string "0xD2E7470EE14C6C93") c0 in
-        let hi1, lo1 = mulhilo64 (Uint64.of_string "0xCA5A826395121157") c2 in
-        Uint64.(logxor hi1 c1 |> logxor k0, lo1, logxor hi0 c3 |> logxor k1, lo0)
+        match mulhilo64 rh0 c0, mulhilo64 rh1 c2 with
+        | (hi0, lo0), (hi1, lo1) -> Uint64.(logxor hi1 c1 |> logxor k0, lo1,
+                                            logxor hi0 c3 |> logxor k1, lo0)
 
 
     let ten_rounds ctr key =
@@ -100,11 +102,11 @@ end = struct
 
     let next (c0, c1, c2, c3) =
         let open Uint64 in
-        match c0 + one = zero, c1 + one = zero, c2 + one = zero with
-        | true, true, true -> (c0 + one, c1 + one, c2 + one, c3 + one)
-        | true, true, false -> (c0 + one, c1 + one, c2 + one, c3)
-        | true, false, false -> (c0 + one, c1 + one, c2, c3)
-        | _, _, _ -> (c0 + one, c1, c2, c3)
+        match c0 + one, c1 + one, c2 + one with
+        | c0', c1', c2' when (c0' = zero && c1' = zero && c2' = zero) -> (c0', c1', c2', c3 + one)
+        | c0', c1', c2' when (c0' = zero && c1' = zero) -> (c0', c1', c2', c3)
+        | c0', c1', _ when c0' = zero -> (c0', c1', c2, c3)
+        | c0', _, _ -> (c0', c1, c2, c3)
 
 
     let to_array (c0, c1, c2, c3) = [| c0; c1; c2; c3 |]
@@ -124,18 +126,14 @@ end = struct
         | true -> t.uinteger, {t with has_uint32 = false}
         | false ->
             let uint, t' = next_uint64 t in
-            Uint64.(of_int 0xffffffff |> logand uint |> to_uint32),
-            {t' with
-             has_uint32 = true;
-             uinteger = Uint64.(shift_right uint 32 |> to_uint32)}
+            Uint64.(of_int 0xffffffff |> logand uint |> to_uint32), (* low 32 bits *)
+            {t' with has_uint32 = true;
+             uinteger = Uint64.(shift_right uint 32 |> to_uint32)} (* high 32 bits *)
 
 
-    let next_double t =
-        let uint, t' = next_uint64 t in
-        Uint64.shift_right uint 11
-        |> Uint64.to_string
-        |> Float.of_string
-        |> Float.mul (1.0 /. 9007199254740992.0), t'
+    let next_double t = match next_uint64 t with
+        | u, t' ->
+            Uint64.(shift_right u 11 |> to_int) |> Float.of_int |> ( *. ) (1.0 /. 9007199254740992.0), t'
 
 
     let jump t =
