@@ -46,9 +46,28 @@ get_floats 10 rng [] |> fst
 ```
 Supported bitgenerators include: `PCG64`, `Philox64`, `Xoshiro256` and `SFC64`.
 
+## Empirical Randomness Testing
+Running the test suite provided by [TestU01][6] on the supported generators is supported.
+To build the test executable one needs to run `dune build bin`. To see the available
+command options run `dune exec -- crush -help`. Below is a sample output from running
+`dune exec -- crush pcg64` to test `PCG64` on the Small Crush test suite:
+```shell
+$ dune exec -- crush pcg64
+
+========= Summary results of SmallCrush =========
+
+ Version:          TestU01 1.2.3
+ Generator:        pcg64
+ Number of statistics:  15
+ Total CPU time:   00:01:40.64
+
+ All tests were passed
+```
+
 
 [1]: https://codecov.io/gh/zoj613/bitgenerators/graph/badge.svg?token=KOOG2Y1SH5
 [2]: https://img.shields.io/github/actions/workflow/status/zoj613/bitgenerators/build-and-test.yml?branch=main
 [3]: https://img.shields.io/github/license/zoj613/bitgenerators
 [4]: https://zoj613.github.io/bitgenerators/bitgenerators/Bitgen/index.html
 [5]: https://www.pcg-random.org/posts/developing-a-seed_seq-alternative.html
+[6]: https://www.semanticscholar.org/paper/TestU01%3A-A-C-library-for-empirical-testing-of-L'Ecuyer-Simard/ba61b9f0b400b6a375eca7f7ecdb18ad871fa9e8

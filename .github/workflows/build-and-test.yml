@@ -44,8 +44,8 @@ jobs:
         run: |
           opam install . --deps-only --with-test --with-doc --yes
 
-      - name: build
-        run: opam exec -- dune build
+      - name: build library
+        run: opam exec -- dune build lib
 
       - name: test
         run: opam exec -- dune runtest --instrument-with bisect_ppx --force
