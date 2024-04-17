@@ -58,26 +58,16 @@ end = struct
 
 
     let next {state; increment} =
-        let setseq' = {state = Uint128.(state * multiplier + increment); increment} in
-        output setseq'.state, setseq'
+        let state' = Uint128.(state * multiplier + increment) in
+        output state', {state = state'; increment}
 
 
-    let next_setseq initstate initseq =
-        let open Uint128 in
-        let increment = shift_left initseq 1 |> logor one in
-        let state = zero * multiplier + increment in
-        {state = (state + initstate) * multiplier + increment; increment}
-
-
-    let next_uint64 t =
-        let uint, s' = next t.s in
-        uint, {t with s = s'}
+    let next_uint64 t = match next t.s with
+        | u, s' -> u, {t with s = s'}
     
 
-    let next_uint32 t =
-        match t.has_uint32 with
-        | true ->
-            t.uinteger, {t with has_uint32 = false}
+    let next_uint32 t = match t.has_uint32 with
+        | true -> t.uinteger, {t with has_uint32 = false}
         | false ->
             let uint, s' = next t.s in
             Uint64.(of_int 0xffffffff |> logand uint |> to_uint32),
@@ -86,36 +76,29 @@ end = struct
              s = s'}
 
 
-    let next_double t =
-        let uint, t' = next_uint64 t in
-        Uint64.shift_right uint 11
-        |> Uint64.to_string
-        |> Float.of_string
-        |> Float.mul (1.0 /. 9007199254740992.0), t'
+    let next_double t = match next_uint64 t with
+        | u, t' ->
+            Uint64.(shift_right u 11 |> to_int) |> Float.of_int |> ( *. ) (1.0 /. 9007199254740992.0), t'
 
 
-    let advance_state_lcg {state; increment} delta mult =
+    let advance delta {s = {state; increment}; has_uint32; uinteger} =
         let open Uint128 in
-        let rec loop d am ap cm cp =
+        let rec lcg d am ap cm cp =  (* advance state using LCG method *)
             match d = zero, logand d one = one with
-            | true, _ -> am, ap
-            | false, true -> loop (shift_right d 1) (am * cm) (ap * cm + cp) (cm * cm) (cp * (cm + one))
-            | false, false -> loop (shift_right d 1) am ap (cm * cm) (cp * (cm + one))
+            | true, _ -> am * state + ap
+            | false, true -> lcg (shift_right d 1) (am * cm) (ap * cm + cp) (cm * cm) (cp * (cm + one))
+            | false, false -> lcg (shift_right d 1) am ap (cm * cm) (cp * (cm + one))
         in
-        let am, ap = loop delta one zero mult increment in
-        am * state + ap
+        {s = {state = lcg (Uint128.of_int128 delta) one zero multiplier increment; increment};
+         has_uint32; uinteger}
 
 
-    let advance delta t =
-        {s = {t.s with state = advance_state_lcg t.s (Uint128.of_int128 delta) multiplier};
-         has_uint32 = false;
-         uinteger = Uint32.zero}
-
-
-    let set_seed (shi, slo, ihi, ilo) t =
-        let s = Uint128.(logor (shift_left (of_uint64 shi) 64) (Uint64.to_uint128 slo)) in
-        let i = Uint128.(logor (shift_left (of_uint64 ihi) 64) (Uint64.to_uint128 ilo)) in
-        {t with s = next_setseq s i}
+    let set_seed (shi, slo, ihi, ilo) =
+        let open Uint128 in
+        let s = logor (shift_left (of_uint64 shi) 64) (of_uint64 slo)
+        and i = logor (shift_left (of_uint64 ihi) 64) (of_uint64 ilo) in
+        let increment = logor (shift_left i 1) one in
+        {state = (increment + s) * multiplier + increment; increment}
 
     (* https://www.pcg-random.org/posts/bounded-rands.html *)
     let next_bounded_uint64 bound t =
@@ -128,9 +111,8 @@ end = struct
 
 
     let initialize seed =
-        let t = {s = {state = Uint128.zero; increment = Uint128.zero};
-                 has_uint32 = false;
-                 uinteger = Uint32.zero} in
-        let istate = Seed.SeedSequence.generate_64bit_state 4 seed in
-        set_seed (istate.(0), istate.(1), istate.(2), istate.(3)) t
+        let state = Seed.SeedSequence.generate_64bit_state 4 seed in
+        {s = set_seed (state.(0), state.(1), state.(2), state.(3));
+         uinteger = Uint32.zero;
+         has_uint32 = false}
 end
