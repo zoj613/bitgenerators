@@ -68,17 +68,16 @@ end = struct
         rnd *. (1.0 /. 9007199254740992.0), t'
 
 
-    let set_seed t (w, x, y) =
+    let set_seed (w, x, y) =
         let rec loop s' = function
             | 0 -> s'
             | i -> loop (next s' |> snd) (i - 1)
         in
-        {t with s = loop (w, x, y, Uint64.one) 12}
+        loop (w, x, y, Uint64.one) 12
 
 
     let initialize seed =
         let istate = Seed.SeedSequence.generate_64bit_state 3 seed in
-        set_seed
-            {s = Uint64.(zero, zero, zero, zero); has_uint32 = false; uinteger = Uint32.zero}
-            (istate.(0), istate.(1), istate.(2))
+        {s = set_seed (istate.(0), istate.(1), istate.(2));
+         has_uint32 = false; uinteger = Uint32.zero}
 end
