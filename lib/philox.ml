@@ -65,7 +65,7 @@ end = struct
         ctr : counter;
         key: key;
         buffer_pos : int;
-        buffer : uint64 array;
+        buffer : uint64 * uint64 * uint64 * uint64;
         has_uint32 : bool;
         uinteger : uint32}
     and counter = uint64 * uint64 * uint64 * uint64
@@ -82,7 +82,7 @@ end = struct
         Uint128.(shift_right p 64 |> to_uint64, to_uint64 p)
 
 
-    let rh0 =Uint64.of_string "0xD2E7470EE14C6C93"
+    let rh0 = Uint64.of_string "0xD2E7470EE14C6C93"
     and rh1 = Uint64.of_string "0xCA5A826395121157"
     let round (c0, c1, c2, c3) (k0, k1) =
         match mulhilo64 rh0 c0, mulhilo64 rh1 c2 with
@@ -91,13 +91,13 @@ end = struct
 
 
     let ten_rounds ctr key =
-        let rec loop r = function
-            | (c, k) when r >= 9 -> c, k
-            | (c, k) -> loop (r + 1) (round_and_bump c k)
-        and round_and_bump ctr key = round ctr key, bumpkey key
-        in
-        let ctr', key' = loop 0 (ctr, key) in
-        round ctr' key'
+        let rec loop r c k = match r with
+            | 9 -> round c k
+            | i -> 
+                let c', k' = round_and_bump c k in
+                loop (i + 1) c' k'
+        and round_and_bump ctr key = round ctr key, bumpkey key in
+        loop 0 ctr key
 
 
     let next (c0, c1, c2, c3) =
@@ -109,16 +109,16 @@ end = struct
         | c0', _, _ -> (c0', c1, c2, c3)
 
 
-    let to_array (c0, c1, c2, c3) = [| c0; c1; c2; c3 |]
+    let index (b0, b1, b2, b3) = function
+        | 0 -> b0 | 1 -> b1 | 2 -> b2 | _ -> b3
 
 
-    let next_uint64 t =
-        if t.buffer_pos < 4 then
-            t.buffer.(t.buffer_pos), {t with buffer_pos = t.buffer_pos + 1}
-        else
+    let next_uint64 t = match t.buffer_pos with
+        | i when i < 4 -> index t.buffer i, {t with buffer_pos = i + 1}
+        | _ ->
             let ctr' = next t.ctr in
-            let buf = ten_rounds ctr' t.key |> to_array in
-            buf.(0), {t with ctr = ctr'; buffer = buf; buffer_pos = 1}
+            let buf = ten_rounds ctr' t.key in
+            index buf 0, {t with ctr = ctr'; buffer = buf; buffer_pos = 1}
 
 
     let next_uint32 t =
@@ -132,8 +132,8 @@ end = struct
 
 
     let next_double t = match next_uint64 t with
-        | u, t' ->
-            Uint64.(shift_right u 11 |> to_int) |> Float.of_int |> ( *. ) (1.0 /. 9007199254740992.0), t'
+        | u, t' -> Uint64.(shift_right u 11 |> to_int)
+                   |> Float.of_int |> ( *. ) (1.0 /. 9007199254740992.0), t'
 
 
     let jump t =
@@ -144,22 +144,18 @@ end = struct
         | false -> {t with ctr = (c0, c1, c2', c3)}
 
 
-    let initialize seed =
-        let istate = Seed.SeedSequence.generate_64bit_state 2 seed in
-        {ctr = Uint64.(zero, zero, zero, zero);
-         buffer = Array.make 4 Uint64.zero;
-         key = (istate.(0), istate.(1));
-         uinteger = Uint32.zero;
-         has_uint32 = false;
-         buffer_pos = 4}
+    let zeros = Uint64.(zero, zero, zero, zero)
 
 
     let initialize_ctr ~counter seed =
         let istate = Seed.SeedSequence.generate_64bit_state 2 seed in
         {ctr = counter;
-         buffer = Array.make 4 Uint64.zero;
+         buffer = zeros;
          key = (istate.(0), istate.(1));
          uinteger = Uint32.zero;
          has_uint32 = false;
          buffer_pos = 4}
+
+
+    let initialize seed = initialize_ctr ~counter:zeros seed
 end
