@@ -63,6 +63,10 @@ $ dune exec -- crush pcg64
 
  All tests were passed
 ```
+## Benchmarks
+A utility to compare the performance of each bitgenerator's `next_uint64` function is provided.
+To compile the benchmark executor run `dune build bin`, and then run it using `dune exec -- bench`.
+Once the benchmark run has completed, a summary table will be displayed in stdout.
 
 
 [1]: https://codecov.io/gh/zoj613/bitgenerators/graph/badge.svg?token=KOOG2Y1SH5

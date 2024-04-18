@@ -55,6 +55,12 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+      - name: Run microbenchmarks
+        run: |
+          opam install testu01 core_bench core_unix --yes
+          opam exec -- dune build bin
+          opam exec -- dune exec -- bench
+
       - name: Build Docs
         run: opam exec -- dune build @doc
 
