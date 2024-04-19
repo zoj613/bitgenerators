@@ -16,56 +16,28 @@ module SFC64 : sig
         each iteration. The input seed is processed by {!SeedSequence} to generate
         the first 3 values, then the algorithm is iterated a small number of times to mix.*)
 
-    type t 
-    (** [t] is the state of the SFC64 bitgenerator *)
-
-    val next_uint64 :  t -> uint64 * t
-    (** Generate a random unsigned 64-bit integer and return a state of the
-        generator advanced by one step forward *)
-
-    val next_uint32 : t -> uint32 * t
-    (** Generate a random unsigned 32-bit integer and return a state of the
-        generator advanced by one step forward *)
-
-    val next_double : t -> float * t
-    (** Generate a random 64 bit float and return a state of the
-        generator advanced by one step forward *)
-
-    val initialize : Seed.SeedSequence.t -> t
-    (** Get the initial state of the generator using a {!SeedSequence} type as input *)
-
+    include Common.BITGEN
 end = struct
     (* last uint64 value is the counter *)
-    type t = {s : state; has_uint32 : bool; uinteger : uint32}
+    type t = {s : state; ustore : uint32 Common.store}
     and state = uint64 * uint64 * uint64 * uint64
 
 
-    let next (w, x, y, z) =
-        let uint = Uint64.(w + x + z)
-        and y' = Uint64.(logor (shift_left y 24) (shift_right y 40)) in
-        uint, Uint64.(shift_right x 11 |> logxor x, y + shift_left y 3, y' + uint, z + one)
+    let next (w, x, y, z) = match Uint64.(w + x + z) with
+        | u -> u, Uint64.(shift_right x 11 |> logxor x, y + shift_left y 3,
+                          logor (shift_left y 24) (shift_right y 40) + u, z + one)
 
 
-    let next_uint64 t =
-        let uint, s' = next t.s in
-        uint, {t with s = s'}
+    let next_uint64 t = match next t.s with
+        | u, s' -> u, {t with s = s'}
 
 
     let next_uint32 t =
-        match t.has_uint32 with
-        | true -> t.uinteger, {t with has_uint32 = false}
-        | false -> let uint, s' = next t.s in
-            Uint64.(of_int 0xffffffff |> logand uint |> to_uint32), {
-                uinteger = Uint64.(shift_right uint 32 |> to_uint32);
-                has_uint32 = true;
-                s = s'
-            }
+        match Common.next_uint32 ~next:next t.s t.ustore with
+        | u, s, ustore -> u, {s; ustore} 
 
 
-    let next_double t =
-        let uint, t' = next_uint64 t in
-        let rnd = Uint64.(shift_right uint 11 |> to_int) |> Float.of_int in
-        rnd *. (1.0 /. 9007199254740992.0), t'
+    let next_double t = Common.next_double ~nextu64:next_uint64 t
 
 
     let set_seed (w, x, y) =
@@ -78,6 +50,5 @@ end = struct
 
     let initialize seed =
         let istate = Seed.SeedSequence.generate_64bit_state 3 seed in
-        {s = set_seed (istate.(0), istate.(1), istate.(2));
-         has_uint32 = false; uinteger = Uint32.zero}
+        {s = set_seed (istate.(0), istate.(1), istate.(2)); ustore = Common.Empty}
 end

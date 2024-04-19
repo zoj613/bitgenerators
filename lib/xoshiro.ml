@@ -20,68 +20,37 @@ module Xoshiro256StarStar : sig
         random numbers have been generated. This allows the original sequence to be split
         so that distinct segments can be used in each worker process.*)
 
-    type t 
-    (** [t] is the state of the Xoshiro256** bitgenerator *)
-
-    val next_uint64 :  t -> uint64 * t
-    (** Generate a random unsigned 64-bit integer and return a state of the
-        generator advanced by one step forward *)
-
-    val next_uint32 : t -> uint32 * t
-    (** Generate a random unsigned 32-bit integer and return a state of the
-        generator advanced by one step forward *)
-
-    val next_double : t -> float * t
-    (** Generate a random 64 bit float and return a state of the
-        generator advanced by one step forward *)
-
-    val initialize : Seed.SeedSequence.t -> t
-    (** Get the initial state of the generator using a {!SeedSequence} type as input *)
+    include Common.BITGEN
 
     val jump : t -> t
     (** [jump t] is equivalent to {m 2^{128}} calls to {!Xoshiro256.next_uint64};
         it can be used to generate {m 2^{128}} non-overlapping subsequences for
         parallel computations. *)
 end = struct
-
-    type t = {s : state; has_uint32 : bool; uinteger : uint32}
+    type t = {s : state; ustore : uint32 Common.store}
         and state = uint64 * uint64 * uint64 * uint64
 
 
     let rotl x k =
-        64 - k |> Uint64.shift_right x |> Uint64.logor (Uint64.shift_left x k)
+        Uint64.shift_right x (64 - k) |> Uint64.(logor (shift_left x k))
 
 
-    let next ((w, x, y, z) : state) : uint64 * state =
-        let open Uint64 in
-        let y' = logxor y w in
-        let z' = logxor z x in
-        of_int 9 * rotl (x * of_int 5) 7,
-        (logxor w z', logxor x y', logxor y' (shift_left x 17), rotl z' 45)
+    let next (w, x, y, z) =
+        let open Uint64 in match logxor y w, logxor z x with
+        | y', z' -> of_int 9 * rotl (x * of_int 5) 7,
+                    (logxor w z', logxor x y', logxor y' (shift_left x 17), rotl z' 45)
 
 
-    let next_uint64 t =
-        let u, s' = next t.s in
-        u, {t with s = s'}
+    let next_uint64 t = match next t.s with
+        | u, s' -> u, {t with s = s'}
 
 
     let next_uint32 t =
-        match t.has_uint32 with
-        | true -> t.uinteger, {t with has_uint32 = false}
-        | false ->
-            let uint, s' = next t.s in
-            Uint64.(of_int 0xffffffff |> logand uint |> to_uint32),
-            {uinteger = Uint64.(shift_right uint 32 |> to_uint32);
-             has_uint32 = true;
-             s = s'}
+        match Common.next_uint32 ~next:next t.s t.ustore with
+        | u, s, ustore -> u, {s; ustore} 
 
 
-    let next_double t =
-        let uint, t' = next_uint64 t in
-        Uint64.shift_right uint 11
-        |> Uint64.to_string
-        |> Float.of_string
-        |> Float.mul (1.0 /. 9007199254740992.0), t'
+    let next_double t = Common.next_double ~nextu64:next_uint64 t
 
 
     let jump = Uint64.(
@@ -103,7 +72,5 @@ end = struct
 
     let initialize seed =
         let istate = Seed.SeedSequence.generate_64bit_state 4 seed in
-        {s = (istate.(0), istate.(1), istate.(2), istate.(3));
-         has_uint32 = false;
-         uinteger = Uint32.zero}
+        {s = (istate.(0), istate.(1), istate.(2), istate.(3)); ustore = Common.Empty}
 end

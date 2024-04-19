@@ -34,23 +34,7 @@ module Philox : sig
                 |> List.map Philox64.initialize
         ]} *)
 
-    type t
-    (** [t] is the state of the Philox64 bitgenerator *)
-
-    val next_uint64 :  t -> uint64 * t
-    (** Generate a random unsigned 64-bit integer and return a state of the
-        generator advanced by one step forward *)
-
-    val next_uint32 : t -> uint32 * t
-    (** Generate a random unsigned 32-bit integer and return a state of the
-        generator advanced by one step forward *)
-
-    val next_double : t -> float * t
-    (** Generate a random 64 bit float and return a state of the
-        generator advanced by one step forward *)
-
-    val initialize : Seed.SeedSequence.t -> t
-    (** Get the initial state of the generator using a {!SeedSequence} type as input *)
+    include Common.BITGEN
 
     val initialize_ctr : counter:uint64 * uint64 * uint64 * uint64 -> Seed.SeedSequence.t -> t
     (** Get the initial state of the generator using a 4-element unsigned 64-bit tuple as
@@ -59,17 +43,15 @@ module Philox : sig
 
     val jump : t -> t
     (** [jump t] is equivalent to {m 2^{128}} calls to {!Philox64.next_uint64}. *)
-
 end = struct
     type t = {
-        ctr : counter;
         key: key;
-        buffer_pos : int;
-        buffer : uint64 * uint64 * uint64 * uint64;
-        has_uint32 : bool;
-        uinteger : uint32}
+        ctr : counter;
+        buffer : buffer;
+        ustore : uint32 Common.store}
     and counter = uint64 * uint64 * uint64 * uint64
     and key = uint64 * uint64
+    and buffer = Buffer of int * counter
 
 
     let bumpk0 = Uint64.of_string "0x9E3779B97F4A7C15"
@@ -113,27 +95,20 @@ end = struct
         | 0 -> b0 | 1 -> b1 | 2 -> b2 | _ -> b3
 
 
-    let next_uint64 t = match t.buffer_pos with
-        | i when i < 4 -> index t.buffer i, {t with buffer_pos = i + 1}
+    let next_uint64 t = match t.buffer with
+        | Buffer (i, buf) when i < 4  -> index buf i, {t with buffer = Buffer (i + 1, buf)}
         | _ ->
             let ctr' = next t.ctr in
             let buf = ten_rounds ctr' t.key in
-            index buf 0, {t with ctr = ctr'; buffer = buf; buffer_pos = 1}
+            index buf 0, {t with ctr = ctr'; buffer = Buffer (1, buf)}
 
 
     let next_uint32 t =
-        match t.has_uint32 with
-        | true -> t.uinteger, {t with has_uint32 = false}
-        | false ->
-            let uint, t' = next_uint64 t in
-            Uint64.(of_int 0xffffffff |> logand uint |> to_uint32), (* low 32 bits *)
-            {t' with has_uint32 = true;
-             uinteger = Uint64.(shift_right uint 32 |> to_uint32)} (* high 32 bits *)
+        match Common.next_uint32 ~next:next_uint64 t t.ustore with
+        | u, s, ustore -> u, {s with ustore = ustore}
 
 
-    let next_double t = match next_uint64 t with
-        | u, t' -> Uint64.(shift_right u 11 |> to_int)
-                   |> Float.of_int |> ( *. ) (1.0 /. 9007199254740992.0), t'
+    let next_double t = Common.next_double ~nextu64:next_uint64 t
 
 
     let jump t =
@@ -150,11 +125,9 @@ end = struct
     let initialize_ctr ~counter seed =
         let istate = Seed.SeedSequence.generate_64bit_state 2 seed in
         {ctr = counter;
-         buffer = zeros;
-         key = (istate.(0), istate.(1));
-         uinteger = Uint32.zero;
-         has_uint32 = false;
-         buffer_pos = 4}
+         ustore = Common.Empty;
+         buffer = Buffer (4, zeros);
+         key = (istate.(0), istate.(1))}
 
 
     let initialize seed = initialize_ctr ~counter:zeros seed
