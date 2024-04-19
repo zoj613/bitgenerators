@@ -18,23 +18,7 @@ module PCG64 : sig
 
         The input seed is processed by {!SeedSequence} to generate both values. *)
 
-    type t
-    (** [t] is the state of the PCG64 bitgenerator *)
-
-    val next_uint64 :  t -> uint64 * t
-    (** Generate a random unsigned 64-bit integer and return a state of the
-        generator advanced by one step forward *)
-
-    val next_uint32 : t -> uint32 * t
-    (** Generate a random unsigned 32-bit integer and return a state of the
-        generator advanced by one step forward *)
-
-    val next_double : t -> float * t
-    (** Generate a random 64 bit float and return a state of the
-        generator advanced by one step forward *)
-
-    val initialize : Seed.SeedSequence.t -> t
-    (** Get the initial state of the generator using a {!SeedSequence} type as input *)
+    include Common.BITGEN
 
     val advance : int128 -> t -> t
     (** [advance delta] Advances the underlying RNG as if [delta] draws have been made.
@@ -44,7 +28,7 @@ module PCG64 : sig
     (** [next_bounded_uint64 bound t] returns an unsigned 64bit integers in the range
         (0, bound) as well as the state of the generator advanced one step forward. *)
 end = struct
-    type t = {s : setseq; has_uint32 : bool; uinteger : uint32}
+    type t = {s : setseq; ustore : uint32 Common.store}
     and setseq = {state : uint128; increment : uint128}
 
     let multiplier = Uint128.of_string "0x2360ed051fc65da44385df649fccf645"
@@ -55,7 +39,7 @@ end = struct
         and r = Uint128.(shift_right state 122 |> to_int) in
         let nr = Uint32.(of_int r |> neg |> logand (of_int 63) |> to_int) in
         Uint64.(logor (shift_left v nr) (shift_right v r))
-
+        
 
     let next {state; increment} =
         let state' = Uint128.(state * multiplier + increment) in
@@ -66,22 +50,15 @@ end = struct
         | u, s' -> u, {t with s = s'}
     
 
-    let next_uint32 t = match t.has_uint32 with
-        | true -> t.uinteger, {t with has_uint32 = false}
-        | false ->
-            let uint, s' = next t.s in
-            Uint64.(of_int 0xffffffff |> logand uint |> to_uint32),
-            {uinteger = Uint64.(shift_right uint 32 |> to_uint32);
-             has_uint32 = true;
-             s = s'}
+    let next_uint32 t =
+        match Common.next_uint32 ~next:next t.s t.ustore with
+        | u, s, ustore -> u, {s; ustore} 
 
 
-    let next_double t = match next_uint64 t with
-        | u, t' ->
-            Uint64.(shift_right u 11 |> to_int) |> Float.of_int |> ( *. ) (1.0 /. 9007199254740992.0), t'
+    let next_double t = Common.next_double ~nextu64:next_uint64 t
 
 
-    let advance delta {s = {state; increment}; has_uint32; uinteger} =
+    let advance delta {s = {state; increment}; ustore} =
         let open Uint128 in
         let rec lcg d am ap cm cp =  (* advance state using LCG method *)
             match d = zero, logand d one = one with
@@ -89,8 +66,7 @@ end = struct
             | false, true -> lcg (shift_right d 1) (am * cm) (ap * cm + cp) (cm * cm) (cp * (cm + one))
             | false, false -> lcg (shift_right d 1) am ap (cm * cm) (cp * (cm + one))
         in
-        {s = {state = lcg (Uint128.of_int128 delta) one zero multiplier increment; increment};
-         has_uint32; uinteger}
+        {s = {state = lcg (Uint128.of_int128 delta) one zero multiplier increment; increment}; ustore}
 
 
     let set_seed (shi, slo, ihi, ilo) =
@@ -112,7 +88,5 @@ end = struct
 
     let initialize seed =
         let state = Seed.SeedSequence.generate_64bit_state 4 seed in
-        {s = set_seed (state.(0), state.(1), state.(2), state.(3));
-         uinteger = Uint32.zero;
-         has_uint32 = false}
+        {s = set_seed (state.(0), state.(1), state.(2), state.(3)); ustore = Common.Empty}
 end
