@@ -4,7 +4,7 @@
 [![license][3]](https://github.com/zoj613/bitgenerators/blob/main/LICENSE)
 
 This library provides a port of numpy's random module bitgenerator interface for working with
-pseudo-random number generation. Several PRNG algorithms are implemented an exposed using
+pseudo-random number generation. Several PRNG algorithms are implemented and exposed using
 numpy's bitgenerator interface in a purely functional manner for Ocaml users.
 
 ## Documentation
@@ -44,7 +44,7 @@ get_floats 10 rng [] |> fst
      "0.70297277417"; "0.933940885237"; "0.338831577483"; "0.460820972876";
      "0.61424098101"; "0.38294818093"] *)
 ```
-Supported bitgenerators include: `PCG64`, `Philox64`, `Xoshiro256` and `SFC64`.
+Supported bitgenerators include: `PCG64`, `Philox64`, `Xoshiro256`, `ChaCha` and `SFC64`.
 
 ## Empirical Randomness Testing
 Running the test suite provided by [TestU01][6] on the supported generators is supported.

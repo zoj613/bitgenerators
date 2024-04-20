@@ -21,6 +21,7 @@ let pairs = [
     "SFC64", (module SFC64: S);
     "Xoshiro256", (module Xoshiro256: S);
     "Philox64", (module Philox64: S);
+    "ChaCha", (module ChaCha: S);
 ]
 
 
