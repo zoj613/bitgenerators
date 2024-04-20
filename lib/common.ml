@@ -6,7 +6,7 @@ type 'a store =
     | Value of 'a
 
 
-let max_int = Int.max_int |> Uint32.of_int
+let maxint32 = Uint64.of_int 0xffffffff
 
 (* [to_uint32 nxt s store] advances state [s] and optains a random uint64 integers
    using function [nxt]. The resulting int is split into 2 uint32 integers where
@@ -18,7 +18,7 @@ let next_uint32 ~next s = function
     | Value x -> x, s, Empty
     | Empty ->
         let uint, s' = next s in
-        Uint64.(logand uint max_int |> to_uint32), s',
+        Uint64.(logand uint maxint32 |> to_uint32), s',
         Value Uint64.(shift_right uint 32 |> to_uint32)
 
 
