@@ -45,24 +45,19 @@ end = struct
         let open Uint32 in logor (shift_left x n) (shift_right x y)
  
 
-    let qround (a, b, c, d) =
+    let qround e =
         let open Uint32 in
-        (* round 1 *)
-        let a' = a + b in let (a, b, c, d) = a', b, c, rotl32 (logxor a' d) 16 in
-        (* round 2 *)
-        let c' = c + d in let (a, b, c, d) = a, rotl32 (logxor c' b) 12, c', d in
-        (* round 3 *)
-        let a' = a + b in let (a, b, c, d) = a', b, c, rotl32 (logxor a' d) 8 in
-        (* round 4 *)
-        let c' = c + d in a, rotl32 (logxor c' b) 7, c', d
+        let f n (a, b, c, d) = let a' = a + b in a', b, c, rotl32 (logxor a' d) n
+        and g n (a, b, c, d) = let c' = c + d in a, rotl32 (logxor c' b) n, c', d in
+        e |> f 16 |> g 12 |> f 8 |> g 7
 
 
-    let full_quarter state (w, x, y, z) =
-        let w', x', y', z' = qround (state.(w), state.(x), state.(y), state.(z)) in
+    let full_quarter state (i, j, k, l) =
+        let w, x, y, z = qround (state.(i), state.(j), state.(k), state.(l)) in
         Array.mapi
-            (fun i v -> match i with
-            | k when k = w -> w' | k when k = x -> x'
-            | k when k = y -> y' | k when k = z -> z' | _ -> v) state
+            (fun idx v -> match idx with
+            | e when e = i -> w | e when e = j -> x
+            | e when e = k -> y | e when e = l -> z | _ -> v) state
 
     
     let indices = [(0, 4, 8, 12); (1, 5, 9, 13); (2, 6, 10, 14); (3, 7, 11, 15);
@@ -78,10 +73,9 @@ end = struct
         loop state n
 
 
-    let sixteen32 = Uint32.of_int 16
-    let sixteen64 = Uint64.of_int 16
     let mask = Uint32.(max_int |> to_uint64)
-    let constants = Uint32.[| of_int 0x61707865; of_int 0x3320646e;
+    and sixteen32, sixteen64 = Uint32.of_int 16, Uint64.of_int 16
+    and constants = Uint32.[| of_int 0x61707865; of_int 0x3320646e;
                               of_int 0x79622d32; of_int 0x6b206574 |]
 
 
@@ -91,12 +85,10 @@ end = struct
         let f x = shift_right x 4 |> logand mask |> to_uint32 in
         let g x = shift_right (shift_right x 4) 32 |> to_uint32 in
         let h x = Uint32.(shift_left (sixteen32 |> rem (of_uint64 x)) 28) in
-        let state = [|
-            constants.(0); constants.(1); constants.(2); constants.(3);
-            keysetup.(0); keysetup.(1); keysetup.(2); keysetup.(3);
-            keysetup.(4); keysetup.(5); keysetup.(6); keysetup.(7);
-            f ctr0; Uint32.logor (g ctr0) (h ctr1); f ctr1; g ctr1 |]
-        in
+        let state = [| constants.(0); constants.(1); constants.(2); constants.(3);
+                       keysetup.(0); keysetup.(1); keysetup.(2); keysetup.(3);
+                       keysetup.(4); keysetup.(5); keysetup.(6); keysetup.(7);
+                       f ctr0; Uint32.logor (g ctr0) (h ctr1); f ctr1; g ctr1 |] in
         rounds lsr 1 |> core state |> Array.map2 Uint32.add state
 
 
@@ -126,8 +118,8 @@ end = struct
         let f x = logand x mask |> to_uint32
         and g x = shift_right x 32 |> to_uint32 in
         let keysetup = [| f seed.(0); g seed.(0); f seed.(1); g seed.(1);
-                        f stream.(0); g stream.(0); f stream.(1); g stream.(1) |] in
-        let ctr' = shift_left (shift_right (fst ctr) 4) 4, snd ctr in
+                          f stream.(0); g stream.(0); f stream.(1); g stream.(1) |]
+        and ctr' = shift_left (shift_right (fst ctr) 4) 4, snd ctr in
         {block = generate_block ctr' keysetup rounds; ctr; keysetup; rounds}
 
 
