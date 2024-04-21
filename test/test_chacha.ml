@@ -14,20 +14,19 @@ let test_chacha_datasets _ =
 
 let test_full_init _ =
     let ss = SeedSequence.initialize [Uint128.of_int 12345] in
-    let key = SeedSequence.generate_64bit_state 4 ss in
-    let full = ChaCha.(initialize_full ~key:key ~counter:Uint64.(max_int, zero) ~rounds:4
-               |> next_uint64) |> fst |> Uint64.to_string in
+    let full = ChaCha.(initialize_full ss Uint64.(max_int, zero) 4 |> next_uint64)
+               |> fst |> Uint64.to_string in
     let default = ChaCha.(initialize ss |> next_uint64) |> fst |> Uint64.to_string in
     assert_bool "stream should not be the same for different init counters" (full <> default)
 
 
 let test_invalid_round _ =
-    let msg = "`rounds` must be a positive, even and > 2" in
-    let key = SeedSequence.(initialize [Uint128.of_int 12345] |> generate_64bit_state 4) in
     let ctr = Uint64.(zero, zero) in
-    assert_raises (Failure msg) (fun _ -> ChaCha.initialize_full ~key:key ~counter:ctr ~rounds:3);
+    let msg = "`rounds` must be a positive, even and > 2" in
+    let ss = SeedSequence.initialize [Uint128.of_int 12345] in
+    assert_raises (Invalid_argument msg) (fun _ -> ChaCha.initialize_full ss ctr 3);
     (* test non-positive even rounds *)
-    assert_raises (Failure msg) (fun _ -> ChaCha.initialize_full ~key:key ~counter:ctr ~rounds:(-10))
+    assert_raises (Invalid_argument msg) (fun _ -> ChaCha.initialize_full ss ctr (-10))
 
 
 let test_advance _ =
