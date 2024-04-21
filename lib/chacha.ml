@@ -31,11 +31,12 @@ module ChaCha128Counter : sig
 
     include Common.BITGEN
 
-    val initialize_full : key:uint64 array -> counter:uint64 * uint64 -> rounds:int -> t
-    (** [initialize_full key counter rounds] initializes the state of the ChaCha
-        bitgenerator; where [key] is a 4-element array, [counter] is a 2-tuple,
+    val initialize_full : Seed.SeedSequence.t -> uint64 * uint64 -> int -> t
+    (** [initialize_full seedseq counter rounds] initializes the state of the ChaCha
+        bitgenerator; where [seedseq] is a {!SeedSequence.t} used to initialize the
+        PRNG's key array, [counter] is a 2-tuple used to initialize the 128-bit counter,
         and [rounds] is the number of rounds to use. [rounds] must be non-negative, even
-        and greater than 2, else an exception is raised. *)
+        and greater than 2, else an [Invalid_argument] exception is raised. *)
 
     val advance : uint128 -> t -> t
     (** [advance n] Advances the generator forward as if [n] calls to {!ChaCha.next_uint32}
@@ -144,15 +145,13 @@ end = struct
         {block = generate_block ctr' keysetup rounds; ctr; keysetup; rounds}
 
 
-    let initialize_full ~key ~counter ~rounds =
-        let rounds' = match rounds, rounds mod 2 with
-            | r, m when r <= 2 || m <> 0 -> failwith "`rounds` must be a positive, even and > 2"
-            | _ -> rounds
-        in
-        set_seed (Array.sub key 0 2) (Array.sub key 2 2) counter rounds'
+    let initialize_full seed counter = function
+        | r when r <= 2 || r mod 2 <> 0 ->
+            raise (Invalid_argument "`rounds` must be a positive, even and > 2")
+        | r ->
+            let key = Seed.SeedSequence.generate_64bit_state 4 seed in
+            set_seed (Array.sub key 0 2) (Array.sub key 2 2) counter r
 
 
-    let initialize seed = 
-        let istate = Seed.SeedSequence.generate_64bit_state 4 seed in
-        initialize_full ~key:istate ~counter:Uint64.(zero, zero) ~rounds:4
+    let initialize seed = initialize_full seed Uint64.(zero, zero) 4
 end
