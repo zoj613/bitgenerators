@@ -36,6 +36,11 @@ module ChaCha128Counter : sig
         bitgenerator; where [key] is a 4-element array, [counter] is a 2-tuple,
         and [rounds] is the number of rounds to use. [rounds] must be non-negative, even
         and greater than 2, else an exception is raised. *)
+
+    val advance : uint128 -> t -> t
+    (** [advance n] Advances the generator forward as if [n] calls to {!ChaCha.next_uint32}
+        have been made, and returns the new advanced state. *)
+
 end = struct
     type t = {rounds: int; block : uint32 array; keysetup : uint32 array; ctr : uint64 * uint64}
 
@@ -111,6 +116,22 @@ end = struct
 
 
     let next_double t = Common.next_double ~nextu64:next_uint64 t
+
+
+    let advance d t =
+        (* Split 128bit [d] into [lower, high] 64-bit integers. *)
+        let d0, d1 = Uint128.(rem d (of_uint64 Uint64.max_int) |> to_uint64,
+                              shift_right d 64 |> to_uint64) in
+        let open Uint64 in
+        let ctr0, ctr1 = t.ctr in
+        let idx = rem ctr0 sixteen64 in
+        let ctr' = match ctr0 + d0 with
+            | v when v < ctr0 -> v, ctr1 + d1 + one
+            | v -> v, ctr1 + d1
+        in
+        match (idx + d0 >= sixteen64 || d1 > zero) && (rem (fst ctr') sixteen64 > zero) with
+        | true -> {t with block = generate_block ctr' t.keysetup t.rounds; ctr = ctr'}
+        | false -> {t with ctr = ctr'}
 
 
     let set_seed seed stream ctr rounds =
