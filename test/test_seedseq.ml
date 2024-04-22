@@ -79,7 +79,7 @@ let test_zero_padding _ =
     (* Ensure that the implicit 0s don't conflict with spawn keys. *)
     assert_equal
         (generate_32bit_state 4 (initialize [Uint128.of_int 42]))
-        (generate_32bit_state 4 (initialize ~spawn_key:[0] [Uint128.of_int 42]))
+        (generate_32bit_state 4 (initialize ~spawn_key:[Uint128.zero] [Uint128.of_int 42]))
         ~cmp:(fun x y -> x <> y)
 
 
