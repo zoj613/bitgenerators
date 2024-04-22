@@ -43,6 +43,11 @@ module Philox : sig
 
     val jump : t -> t
     (** [jump t] is equivalent to {m 2^{128}} calls to {!Philox64.next_uint64}. *)
+
+    val advance : uint64 * uint64 * uint64 * uint64 -> t -> t
+    (** [advance n] Advances the generator forward as if [n] draws have been made,
+        and returns the new advanced state.*)
+
 end = struct
     type t = {key: key; ctr : counter; buffer : buffer; buffer_pos : int; ustore : uint32 option}
     and counter = uint64 array
@@ -97,6 +102,24 @@ end = struct
         let c2' = Uint64.(t.ctr.(2) + one) in match Uint64.(c2' = zero) with
         | true -> {t with ctr = [|t.ctr.(0); t.ctr.(1); c2'; Uint64.(t.ctr.(3) + one)|]}
         | false -> {t with ctr = [|t.ctr.(0); t.ctr.(1); c2'; t.ctr.(3)|]}
+
+
+    let advance (d0, d1, d2, d3) t =
+        let aux s x c =
+            let x', c' = match Uint64.(x + one), c with
+                | v, true when Uint64.(v = zero) -> v, true
+                | v, true -> v, false
+                | _, false -> x, c
+            in
+            match Uint64.(x' + s) with
+            | v when (v < x' && c' = false) -> v, true
+            | v -> v, c'
+        in
+        let c0', p0 = aux d0 t.ctr.(0) false in
+        let c1', p1 = aux d1 t.ctr.(1) p0 in
+        let c2', p2 = aux d2 t.ctr.(2) p1 in
+        let c3', _ = aux d3 t.ctr.(3) p2 in
+        {t with ctr = [|c0'; c1'; c2'; c3'|]}
 
 
     let initialize_ctr ~counter:(w, x, y, z) seed =
