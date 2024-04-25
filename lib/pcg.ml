@@ -32,12 +32,13 @@ end = struct
     and setseq = {state : uint128; increment : uint128}
 
     let multiplier = Uint128.of_string "0x2360ed051fc65da44385df649fccf645"
+    let sixtythree = Uint32.of_int 63
 
     (* Uses the XSL-RR output function *)
     let output state =
-        let v = Uint128.(shift_right state 64 |> logxor state |> Uint64.of_uint128)
+        let v = Uint128.(shift_right state 64 |> logxor state |> to_uint64)
         and r = Uint128.(shift_right state 122 |> to_int) in
-        let nr = Uint32.(of_int r |> neg |> logand (of_int 63) |> to_int) in
+        let nr = Uint32.(of_int r |> neg |> logand sixtythree |> to_int) in
         Uint64.(logor (shift_left v nr) (shift_right v r))
         
 
@@ -47,7 +48,7 @@ end = struct
 
 
     let next_uint64 t = match next t.s with
-        | u, s' -> u, {t with s = s'}
+        | u, s -> u, {t with s}
     
 
     let next_uint32 t =
@@ -58,35 +59,33 @@ end = struct
     let next_double t = Common.next_double ~nextu64:next_uint64 t
 
 
-    let advance delta {s = {state; increment}; ustore} =
+    let advance delta ({s = {state; increment}; _} as t) =
         let open Uint128 in
         let rec lcg d am ap cm cp =  (* advance state using LCG method *)
             match d = zero, logand d one = one with
             | true, _ -> am * state + ap
             | false, true -> lcg (shift_right d 1) (am * cm) (ap * cm + cp) (cm * cm) (cp * (cm + one))
             | false, false -> lcg (shift_right d 1) am ap (cm * cm) (cp * (cm + one))
-        in
-        {s = {state = lcg (Uint128.of_int128 delta) one zero multiplier increment; increment}; ustore}
+        in {t with s = {state = lcg (Uint128.of_int128 delta) one zero multiplier increment; increment}}
 
 
-    let set_seed (shi, slo, ihi, ilo) =
+    let set_seed seed =
         let open Uint128 in
-        let s = logor (shift_left (of_uint64 shi) 64) (of_uint64 slo)
-        and i = logor (shift_left (of_uint64 ihi) 64) (of_uint64 ilo) in
+        let s = logor (shift_left (of_uint64 seed.(0)) 64) (of_uint64 seed.(1))
+        and i = logor (shift_left (of_uint64 seed.(2)) 64) (of_uint64 seed.(3)) in
         let increment = logor (shift_left i 1) one in
         {state = (increment + s) * multiplier + increment; increment}
 
-    (* https://www.pcg-random.org/posts/bounded-rands.html *)
+
     let next_bounded_uint64 bound t =
         let rec loop threshold = function
             | r, s when r >= threshold -> s, r
             | _, s -> loop threshold (next s)
         in
-        let setseq', r' = loop (Uint64.rem (Uint64.neg bound) bound) (next t.s) in
-        Uint64.rem r' bound, {t with s = setseq'} 
+        let s, r' = loop (Uint64.rem (Uint64.neg bound) bound) (next t.s) in
+        Uint64.rem r' bound, {t with s} 
 
 
     let initialize seed =
-        let state = Seed.SeedSequence.generate_64bit_state 4 seed in
-        {s = set_seed (state.(0), state.(1), state.(2), state.(3)); ustore = Common.Empty}
+        {s = set_seed (Seed.SeedSequence.generate_64bit_state 4 seed); ustore = Common.Empty}
 end
