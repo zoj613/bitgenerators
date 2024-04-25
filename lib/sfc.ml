@@ -29,7 +29,7 @@ end = struct
 
 
     let next_uint64 t = match next t.s with
-        | u, s' -> u, {t with s = s'}
+        | u, s -> u, {t with s}
 
 
     let next_uint32 t =
@@ -41,9 +41,9 @@ end = struct
 
 
     let set_seed (w, x, y) =
-        let rec loop s' = function
-            | 0 -> s'
-            | i -> loop (next s' |> snd) (i - 1)
+        let rec loop s = function
+            | 0 -> s
+            | i -> loop (next s |> snd) (i - 1)
         in
         loop (w, x, y, Uint64.one) 12
 

@@ -44,91 +44,68 @@ module Philox : sig
     val jump : t -> t
     (** [jump t] is equivalent to {m 2^{128}} calls to {!Philox64.next_uint64}. *)
 end = struct
-    type t = {
-        key: key;
-        ctr : counter;
-        buffer : buffer;
-        ustore : uint32 Common.store}
-    and counter = uint64 * uint64 * uint64 * uint64
-    and key = uint64 * uint64
-    and buffer = Buffer of int * counter
+    type t = {key: key; ctr : counter; buffer : buffer; buffer_pos : int; ustore : uint32 Common.store}
+    and counter = uint64 array
+    and key = uint64 array
+    and buffer = uint64 array
 
-
-    let bumpk0 = Uint64.of_string "0x9E3779B97F4A7C15"
-    and bumpk1 = Uint64.of_string "0xBB67AE8584CAA73B"
-    let bumpkey (x, y) = Uint64.(x + bumpk0, y + bumpk1)
-
+    let rh0, rh1 = Uint128.(of_string "0xD2E7470EE14C6C93", of_string "0xCA5A826395121157")
+    let k0, k1 = Uint64.(of_string "0x9E3779B97F4A7C15", of_string "0xBB67AE8584CAA73B")
 
     let mulhilo64 a b =
-        let p = Uint128.(of_uint64 a * of_uint64 b) in
-        Uint128.(shift_right p 64 |> to_uint64, to_uint64 p)
-
-
-    let rh0 = Uint64.of_string "0xD2E7470EE14C6C93"
-    and rh1 = Uint64.of_string "0xCA5A826395121157"
-    let round (c0, c1, c2, c3) (k0, k1) =
-        match mulhilo64 rh0 c0, mulhilo64 rh1 c2 with
-        | (hi0, lo0), (hi1, lo1) -> Uint64.(logxor hi1 c1 |> logxor k0, lo1,
-                                            logxor hi0 c3 |> logxor k1, lo0)
+        let p = Uint128.(a * of_uint64 b) in
+        Uint128.[|shift_right p 64 |> to_uint64; to_uint64 p|]
 
 
     let ten_rounds ctr key =
-        let rec loop r c k = match r with
-            | 9 -> round c k
-            | i -> 
-                let c', k' = round_and_bump c k in
-                loop (i + 1) c' k'
-        and round_and_bump ctr key = round ctr key, bumpkey key in
-        loop 0 ctr key
+        let rec loop c k r =
+            let c' = match mulhilo64 rh0 c.(0), mulhilo64 rh1 c.(2) with
+                | x, y -> Uint64.[|logxor y.(0) c.(1) |> logxor k.(0); y.(1);
+                                  logxor x.(0) c.(3) |> logxor k.(1); x.(1)|]
+            in match r with
+            | 0 -> c'
+            | i -> loop c' Uint64.[|k.(0) + k0; k.(1) + k1|] (i - 1)
+        in loop ctr key 9
 
 
-    let next (c0, c1, c2, c3) =
+    let next c =
         let open Uint64 in
-        match c0 + one, c1 + one, c2 + one with
-        | c0', c1', c2' when (c0' = zero && c1' = zero && c2' = zero) -> (c0', c1', c2', c3 + one)
-        | c0', c1', c2' when (c0' = zero && c1' = zero) -> (c0', c1', c2', c3)
-        | c0', c1', _ when c0' = zero -> (c0', c1', c2, c3)
-        | c0', _, _ -> (c0', c1, c2, c3)
+        match c.(0) + one, c.(1) + one, c.(2) + one with
+        | c0', c1', c2' when (c0' = zero && c1' = zero && c2' = zero) -> [|c0'; c1'; c2'; c.(3) + one|]
+        | c0', c1', c2' when (c0' = zero && c1' = zero) -> [|c0'; c1'; c2'; c.(3)|]
+        | c0', c1', _ when c0' = zero -> [|c0'; c1'; c.(2); c.(3)|]
+        | c0', _, _ -> [|c0'; c.(1); c.(2); c.(3)|]
 
 
-    let index (b0, b1, b2, b3) = function
-        | 0 -> b0 | 1 -> b1 | 2 -> b2 | _ -> b3
-
-
-    let next_uint64 t = match t.buffer with
-        | Buffer (i, buf) when i < 4  -> index buf i, {t with buffer = Buffer (i + 1, buf)}
-        | _ ->
-            let ctr' = next t.ctr in
-            let buf = ten_rounds ctr' t.key in
-            index buf 0, {t with ctr = ctr'; buffer = Buffer (1, buf)}
+    let next_uint64 t = match t.buffer_pos < 4 with
+        | true -> t.buffer.(t.buffer_pos), {t with buffer_pos = t.buffer_pos + 1}
+        | false ->
+            let ctr = next t.ctr in
+            let buffer = ten_rounds ctr t.key in
+            buffer.(0), {t with ctr; buffer; buffer_pos = 1}
 
 
     let next_uint32 t =
         match Common.next_uint32 ~next:next_uint64 t t.ustore with
-        | u, s, ustore -> u, {s with ustore = ustore}
+        | u, s, ustore -> u, {s with ustore}
 
 
     let next_double t = Common.next_double ~nextu64:next_uint64 t
 
 
     let jump t =
-        let c0, c1, c2, c3 = t.ctr in
-        let c2' = Uint64.(c2 + one) in
-        match Uint64.(c2' = zero) with
-        | true -> {t with ctr = (c0, c1, c2', Uint64.(c3 + one))}
-        | false -> {t with ctr = (c0, c1, c2', c3)}
+        let c2' = Uint64.(t.ctr.(2) + one) in match Uint64.(c2' = zero) with
+        | true -> {t with ctr = [|t.ctr.(0); t.ctr.(1); c2'; Uint64.(t.ctr.(3) + one)|]}
+        | false -> {t with ctr = [|t.ctr.(0); t.ctr.(1); c2'; t.ctr.(3)|]}
 
 
-    let zeros = Uint64.(zero, zero, zero, zero)
-
-
-    let initialize_ctr ~counter seed =
-        let istate = Seed.SeedSequence.generate_64bit_state 2 seed in
-        {ctr = counter;
+    let initialize_ctr ~counter:(w, x, y, z) seed =
+        {buffer_pos = 4;
+         ctr = [|w; x; y; z|];
          ustore = Common.Empty;
-         buffer = Buffer (4, zeros);
-         key = (istate.(0), istate.(1))}
+         buffer = Array.make 4 Uint64.zero;
+         key = Seed.SeedSequence.generate_64bit_state 2 seed}
 
 
-    let initialize seed = initialize_ctr ~counter:zeros seed
+    let initialize seed = initialize_ctr ~counter:Uint64.(zero, zero, zero, zero) seed
 end

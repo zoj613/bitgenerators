@@ -43,40 +43,36 @@ module ChaCha128Counter : sig
         have been made, and returns the new advanced state. *)
 
 end = struct
-    type t = {rounds: int; block : uint32 array; keysetup : uint32 array; ctr : uint64 * uint64}
+    type t = {rounds: int; block : uint32 array; keysetup : uint32 array; ctr : uint64 array}
 
 
     let rotl32 x n =
-        let y = 32 - n in
-        let open Uint32 in logor (shift_left x n) (shift_right x y)
+        let y = 32 - n in Uint32.(logor (shift_left x n) (shift_right x y))
  
 
-    let qround e =
+    let update_values e =
         let open Uint32 in
         let f n (a, b, c, d) = let a' = a + b in a', b, c, rotl32 (logxor a' d) n
         and g n (a, b, c, d) = let c' = c + d in a, rotl32 (logxor c' b) n, c', d in
         e |> f 16 |> g 12 |> f 8 |> g 7
 
 
-    let full_quarter state (i, j, k, l) =
-        let w, x, y, z = qround (state.(i), state.(j), state.(k), state.(l)) in
+    let quarter_round block (i, j, k, l) =
+        let w, x, y, z = update_values (block.(i), block.(j), block.(k), block.(l)) in
         Array.mapi
             (fun idx v -> match idx with
             | e when e = i -> w | e when e = j -> x
-            | e when e = k -> y | e when e = l -> z | _ -> v) state
+            | e when e = k -> y | e when e = l -> z | _ -> v) block
 
     
-    let indices = [(0, 4, 8, 12); (1, 5, 9, 13); (2, 6, 10, 14); (3, 7, 11, 15);
-                    (0, 5, 10, 15); (1, 6, 11, 12); (2, 7, 8, 13); (3, 4, 9, 14)]
-    
+    let indices = [|(0, 4, 8, 12); (1, 5, 9, 13); (2, 6, 10, 14); (3, 7, 11, 15);
+                    (0, 5, 10, 15); (1, 6, 11, 12); (2, 7, 8, 13); (3, 4, 9, 14)|]
 
-    let core state n =
-        let f s = List.fold_left (fun acc idx -> full_quarter acc idx) s indices in
-        let rec loop state0 = function
-            | 0 -> state0
-            | i -> loop (f state0) (i - 1)
-        in
-        loop state n
+    let core block n =
+        let rec loop block0 = function
+            | 0 -> block0
+            | i -> loop (Array.fold_left quarter_round block0 indices) (i - 1)
+        in loop block n
 
 
     let mask = Uint32.(max_int |> to_uint64)
@@ -87,27 +83,25 @@ end = struct
 
     let generate_block ctr keysetup rounds =
         let open Uint64 in
-        let ctr0, ctr1 = ctr in
         let f x = shift_right x 4 |> logand mask |> to_uint32 in
         let g x = shift_right (shift_right x 4) 32 |> to_uint32 in
         let h x = Uint32.(shift_left (sixteen32 |> rem (of_uint64 x)) 28) in
-        let state = [| constants.(0); constants.(1); constants.(2); constants.(3);
+        let block = [| constants.(0); constants.(1); constants.(2); constants.(3);
                        keysetup.(0); keysetup.(1); keysetup.(2); keysetup.(3);
                        keysetup.(4); keysetup.(5); keysetup.(6); keysetup.(7);
-                       f ctr0; Uint32.logor (g ctr0) (h ctr1); f ctr1; g ctr1 |] in
-        rounds lsr 1 |> core state |> Array.map2 Uint32.add state
+                       f ctr.(0); Uint32.logor (g ctr.(0)) (h ctr.(1)); f ctr.(1); g ctr.(1)|] in
+        rounds lsr 1 |> core block |> Array.map2 Uint32.add block
 
 
     let next_uint32 t =
         let open Uint64 in
-        let idx, t' = match rem (fst t.ctr) sixteen64 with
-            (* this branch is unlikely *)
+        let idx, t' = match rem t.ctr.(0) sixteen64 with
             | i when i = zero -> i, {t with block = generate_block t.ctr t.keysetup t.rounds}
             | i -> i, t
         in
-        match t'.block.(to_int idx), fst t.ctr |> add one with
-        | u, v when v = zero -> u, {t' with ctr = v, snd t.ctr + one}
-        | u, v -> u, {t' with ctr = v, snd t.ctr}
+        match t'.block.(to_int idx), t.ctr.(0) + one with
+        | u, v when v = zero -> u, {t' with ctr = [|zero; t.ctr.(1) + one|]}
+        | u, v -> u, {t' with ctr = [|v; t.ctr.(1)|]}
 
  
     let next_uint64 t =
@@ -124,15 +118,14 @@ end = struct
         let d0, d1 = Uint128.(rem d (of_uint64 Uint64.max_int) |> to_uint64,
                               shift_right d 64 |> to_uint64) in
         let open Uint64 in
-        let ctr0, ctr1 = t.ctr in
-        let idx = rem ctr0 sixteen64 in
-        let ctr' = match ctr0 + d0 with
-            | v when v < ctr0 -> v, ctr1 + d1 + one
-            | v -> v, ctr1 + d1
+        let idx = rem t.ctr.(0) sixteen64 in
+        let ctr = match t.ctr.(0) + d0 with
+            | v when v < t.ctr.(0) -> [|v; t.ctr.(1) + d1 + one|]
+            | v -> [|v; t.ctr.(1) + d1|]
         in
-        match (idx + d0 >= sixteen64 || d1 > zero) && (rem (fst ctr') sixteen64 > zero) with
-        | true -> {t with block = generate_block ctr' t.keysetup t.rounds; ctr = ctr'}
-        | false -> {t with ctr = ctr'}
+        match (idx + d0 >= sixteen64 || d1 > zero) && (rem ctr.(0) sixteen64 > zero) with
+        | true -> {t with block = generate_block ctr t.keysetup t.rounds; ctr}
+        | false -> {t with ctr}
 
 
     let set_seed seed stream ctr rounds =
@@ -141,16 +134,16 @@ end = struct
         and g x = shift_right x 32 |> to_uint32 in
         let keysetup = [| f seed.(0); g seed.(0); f seed.(1); g seed.(1);
                           f stream.(0); g stream.(0); f stream.(1); g stream.(1) |]
-        and ctr' = shift_left (shift_right (fst ctr) 4) 4, snd ctr in
+        and ctr' = [|shift_left (shift_right ctr.(0) 4) 4; ctr.(1)|] in
         {block = generate_block ctr' keysetup rounds; ctr; keysetup; rounds}
 
 
-    let initialize_full seed counter = function
+    let initialize_full seed (x, y) = function
         | r when r <= 2 || r mod 2 <> 0 ->
             raise (Invalid_argument "`rounds` must be a positive, even and > 2")
         | r ->
             let key = Seed.SeedSequence.generate_64bit_state 4 seed in
-            set_seed (Array.sub key 0 2) (Array.sub key 2 2) counter r
+            set_seed (Array.sub key 0 2) (Array.sub key 2 2) [|x; y|] r
 
 
     let initialize seed = initialize_full seed Uint64.(zero, zero) 4

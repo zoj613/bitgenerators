@@ -28,17 +28,19 @@ module Xoshiro256StarStar : sig
         parallel computations. *)
 end = struct
     type t = {s : state; ustore : uint32 Common.store}
-        and state = uint64 * uint64 * uint64 * uint64
+    and state = uint64 array
 
 
     let rotl x k =
-        Uint64.shift_right x (64 - k) |> Uint64.(logor (shift_left x k))
+        let d = 64 - k in Uint64.(logor (shift_left x k) (shift_right x d))
 
 
-    let next (w, x, y, z) =
-        let open Uint64 in match logxor y w, logxor z x with
-        | y', z' -> of_int 9 * rotl (x * of_int 5) 7,
-                    (logxor w z', logxor x y', logxor y' (shift_left x 17), rotl z' 45)
+    let five, nine = Uint64.(of_int 5, of_int 9)
+
+    let next s =
+        let open Uint64 in match logxor s.(2) s.(0), logxor s.(3) s.(1) with
+        | y', z' -> nine * rotl (s.(1) * five) 7,
+                    [|logxor s.(0) z'; logxor s.(1) y'; logxor y' (shift_left s.(1) 17); rotl z' 45|]
 
 
     let next_uint64 t = match next t.s with
@@ -56,21 +58,17 @@ end = struct
     let jump = Uint64.(
         [| of_int 0x180ec6d33cfd0aba; of_string "0xd5a61266f0c9392c";
            of_string "0xa9582618e03fc9aa"; of_int 0x39abdc4529b1661c |])
-
+    let zeros = Uint64.[|zero; zero; zero; zero|]
 
     let jump t = 
-        let map2 f (x0, x1, x2, x3) (y0, y1, y2, y3) = (f x0 y0, f x1 y1, f x2 y2, f x3 y3) in
-        let rec loop b j (acc, st) =
+        let rec loop b j (acc0, acc1) =
             match b >= 64, Uint64.(logand j (shift_left one b) > zero) with
-            | true, _ -> acc, st 
-            | false, true -> loop (b + 1) j (map2 Uint64.logxor acc st, (next st |> snd))
-            | false, false -> loop (b + 1) j (acc, (next st |> snd))
-        in
-        {t with s = loop 0 jump.(0) (Uint64.(zero, zero, zero, zero), t.s)
-         |> loop 0 jump.(1) |> loop 0 jump.(2) |> loop 0 jump.(3) |> fst}
+            | true, _ -> acc0, acc1 
+            | false, true -> loop (b + 1) j (Array.map2 Uint64.logxor acc0 acc1, (next acc1 |> snd))
+            | false, false -> loop (b + 1) j (acc0, (next acc1 |> snd))
+        in {t with s = Array.fold_right (loop 0) jump (zeros, t.s) |> fst}
 
 
     let initialize seed =
-        let istate = Seed.SeedSequence.generate_64bit_state 4 seed in
-        {s = (istate.(0), istate.(1), istate.(2), istate.(3)); ustore = Common.Empty}
+        {s = Seed.SeedSequence.generate_64bit_state 4 seed; ustore = Common.Empty}
 end
