@@ -112,6 +112,9 @@ end = struct
     let next_double t = Common.next_double ~nextu64:next_uint64 t
 
 
+    let next_bounded_uint64 bound t = Common.next_bounded_uint64 bound ~nextu64:next_uint64 t
+
+
     let advance d t =
         (* Split 128bit [d] into [lower, high] 64-bit integers. *)
         let d0, d1 = Uint128.(rem d (of_uint64 Uint64.max_int) |> to_uint64,

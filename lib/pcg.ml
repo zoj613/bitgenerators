@@ -77,13 +77,7 @@ end = struct
         {state = (increment + s) * multiplier + increment; increment}
 
 
-    let next_bounded_uint64 bound t =
-        let rec loop threshold = function
-            | r, s when r >= threshold -> s, r
-            | _, s -> loop threshold (next s)
-        in
-        let s, r' = loop (Uint64.rem (Uint64.neg bound) bound) (next t.s) in
-        Uint64.rem r' bound, {t with s} 
+    let next_bounded_uint64 bound t = Common.next_bounded_uint64 bound ~nextu64:next_uint64 t
 
 
     let initialize seed =

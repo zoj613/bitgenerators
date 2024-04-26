@@ -24,6 +24,21 @@ let next_double ~nextu64 t = match nextu64 t with
                |> ( *. ) (1.0 /. 9007199254740992.0), t'
 
 
+(* Generate a random uint64 integer in the range [0, b) where [b] is the upper bound.
+   This implementation uses Lemire's method. See: https://arxiv.org/abs/1805.10941 *)
+let next_bounded_uint64 b ~nextu64 t =
+    let b' = Uint128.of_uint64 b
+    and r = Uint64.(rem (neg b) b) in
+    let rec loop = function
+        | m, s when Uint128.to_uint64 m >= r -> Uint128.(shift_right m 64 |> to_uint64), s
+        | _, s -> match nextu64 s with
+            | x, s' -> loop Uint128.(of_uint64 x * b', s')
+    in let x, t' = nextu64 t in
+    match Uint128.(of_uint64 x * b') with
+    | m when Uint128.(to_uint64 m < b) -> loop (m, t')
+    | m -> Uint128.(shift_right m 64 |> to_uint64), t'
+
+
 module type BITGEN = sig
     type t 
     (** [t] is the state of the bitgenerator. *)
@@ -35,6 +50,13 @@ module type BITGEN = sig
     val next_uint32 : t -> uint32 * t
     (** [next_uint32 t] Generates a random unsigned 32-bit integer and a state
         of the generator advanced forward by one step. *)
+
+    val next_bounded_uint64 : uint64 -> t -> uint64 * t
+    (** [next_bounded_uint64 b t] Generates a random unsigned 64-bit integer
+        in the interval {m [0, b)}. It returns the integer as well as the state of the
+        generator advanced forward. To generate an integer in the range {m [a, b)},
+        one should generate an integer in {m [0, b - a)} using [next_bounded_uint64 (b - a) t]
+      and then add [a] to the resulting integer to get the output in the desired range. *)
 
     val next_double : t -> float * t
     (** [next_double t] Generates a random 64 bit float and a state of the
