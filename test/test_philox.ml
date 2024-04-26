@@ -11,6 +11,9 @@ let test_philox_datasets _ =
         (Sys.getcwd () ^ "/../../../test/data/philox-testset-2.csv")
 
 
+let test_bounded_u64 _ = Testconf.test_bounded_u64 (module Philox4x64)
+
+
 let test_counter_init _ =
     let open Stdint in
     let ss = SeedSequence.initialize [Uint128.of_int 12345] in
@@ -54,4 +57,5 @@ let tests = [
     "test behaviour when counter is set" >:: test_counter_init;
     "test Philox jump function consistency" >:: test_jump;
     "test Philox advance function correctness" >:: test_advance;
+    "test bounded random generation of Philox" >:: test_bounded_u64;
 ]

@@ -55,6 +55,9 @@ end = struct
     let next_double t = Common.next_double ~nextu64:next_uint64 t
 
 
+    let next_bounded_uint64 bound t = Common.next_bounded_uint64 bound ~nextu64:next_uint64 t
+
+
     let jump = Uint64.(
         [| of_int 0x180ec6d33cfd0aba; of_string "0xd5a61266f0c9392c";
            of_string "0xa9582618e03fc9aa"; of_int 0x39abdc4529b1661c |])

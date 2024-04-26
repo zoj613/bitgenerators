@@ -12,6 +12,9 @@ let test_chacha_datasets _ =
         (Sys.getcwd () ^ "/../../../test/data/chacha-testset-2.csv")
 
 
+let test_bounded_u64 _ = Testconf.test_bounded_u64 (module ChaCha)
+
+
 let test_full_init _ =
     let ss = SeedSequence.initialize [Uint128.of_int 12345] in
     let full = ChaCha.(initialize_full ss Uint64.(max_int, zero) 4 |> next_uint64)
@@ -57,4 +60,5 @@ let tests = [
     "test ChaCha full initialization consistency" >:: test_full_init;
     "test if odd number of rounds raises exception" >:: test_invalid_round;
     "test the correctness of ChaCha's advance function" >:: test_advance;
+    "test bounded random generation of ChaCha" >:: test_bounded_u64;
 ]

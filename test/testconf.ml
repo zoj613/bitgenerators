@@ -17,8 +17,20 @@ module type S = sig
     val next_uint64 :  t -> uint64 * t
     val next_uint32 : t -> uint32 * t
     val next_double : t -> float * t
+    val next_bounded_uint64: uint64 -> t -> uint64 * t
     val initialize : Bitgen.SeedSequence.t -> t
 end
+
+
+let test_bounded_u64 (module M : S) =
+    let open Stdint in
+    let is_less bound t = match M.next_bounded_uint64 bound t with
+        | u, t' -> Some (u < bound, t') in
+    let t = Bitgen.SeedSequence.initialize [Uint128.of_int 12345] |> M.initialize in
+    let all_true b = Seq.(unfold (is_less b) t |> take 100 |> fold_left (&&) true) in
+    List.iter (fun b -> assert_equal true (all_true b)) Uint64.[of_int 1; of_int 4193609425186963870]
+
+
 (* This tests the correctness of a bitgenerator's implementation against groundtruth data for a given seed.
    This function takes the module representing the bitgenerator as well as the path to the CSV file
    containing the groundtruth data. The data is sourced from numpy's random module test suite. *)

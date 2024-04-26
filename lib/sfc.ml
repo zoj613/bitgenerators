@@ -40,6 +40,9 @@ end = struct
     let next_double t = Common.next_double ~nextu64:next_uint64 t
 
 
+    let next_bounded_uint64 bound t = Common.next_bounded_uint64 bound ~nextu64:next_uint64 t
+
+
     let set_seed (w, x, y) =
         let rec loop s = function
             | 0 -> s

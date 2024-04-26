@@ -98,6 +98,9 @@ end = struct
     let next_double t = Common.next_double ~nextu64:next_uint64 t
 
 
+    let next_bounded_uint64 bound t = Common.next_bounded_uint64 bound ~nextu64:next_uint64 t
+
+
     let jump t =
         let c2' = Uint64.(t.ctr.(2) + one) in match Uint64.(c2' = zero) with
         | true -> {t with ctr = [|t.ctr.(0); t.ctr.(1); c2'; Uint64.(t.ctr.(3) + one)|]}

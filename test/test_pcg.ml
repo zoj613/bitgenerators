@@ -16,20 +16,6 @@ let test_advance _ =
         ~printer:(fun x -> x)
 
 
-let test_bounded_u64 _ =
-    let open Stdint in
-    let rec loop i t b acc n = match i >= n with
-        | true -> List.fold_left ( && ) true (List.rev acc)
-        | false ->
-            let u, t' = PCG64.next_bounded_uint64 b t in
-            loop (i + 1) t' b ((u < b) :: acc) n
-    in
-    let t = SeedSequence.initialize [Uint128.of_int 12345] |> PCG64.initialize in
-    List.iter
-        (fun b -> assert_equal true (loop 0 t (Uint64.of_int b) [] 1000))
-        [1; 1000; 4193609425186963870]
-
-
 let test_pcg_datasets _ =
     Testconf.bitgen_groundtruth
         (module PCG64)
@@ -37,6 +23,9 @@ let test_pcg_datasets _ =
     Testconf.bitgen_groundtruth
         (module PCG64)
         (Sys.getcwd () ^ "/../../../test/data/pcg64-testset-2.csv")
+
+
+let test_bounded_u64 _ = Testconf.test_bounded_u64 (module PCG64)
 
 
 let tests = [
