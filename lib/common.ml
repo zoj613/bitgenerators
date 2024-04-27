@@ -1,11 +1,6 @@
 open Stdint
 
 
-type 'a store =
-    | Empty
-    | Value of 'a
-
-
 let maxint32 = Uint64.of_int 0xffffffff
 
 (* [to_uint32 nxt s store] advances state [s] and optains a random uint64 integers
@@ -15,11 +10,11 @@ let maxint32 = Uint64.of_int 0xffffffff
    [store] is returned and an empty store is returned to the caller. A 3-tuple is
    returned of the form: (new uint32, new state s, new store). *)
 let next_uint32 ~next s = function
-    | Value x -> x, s, Empty
-    | Empty ->
+    | Some x -> x, s, None
+    | None ->
         let uint, s' = next s in
         Uint64.(logand uint maxint32 |> to_uint32), s',
-        Value Uint64.(shift_right uint 32 |> to_uint32)
+        Some Uint64.(shift_right uint 32 |> to_uint32)
 
 
 (* [next_double nextu64 t] returns a random float from bitgenerator [t] using

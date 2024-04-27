@@ -19,7 +19,7 @@ module SFC64 : sig
     include Common.BITGEN
 end = struct
     (* last uint64 value is the counter *)
-    type t = {s : state; ustore : uint32 Common.store}
+    type t = {s : state; ustore : uint32 option}
     and state = uint64 * uint64 * uint64 * uint64
 
 
@@ -50,5 +50,5 @@ end = struct
 
     let initialize seed =
         let istate = Seed.SeedSequence.generate_64bit_state 3 seed in
-        {s = set_seed (istate.(0), istate.(1), istate.(2)); ustore = Common.Empty}
+        {s = set_seed (istate.(0), istate.(1), istate.(2)); ustore = None}
 end

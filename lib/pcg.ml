@@ -28,7 +28,7 @@ module PCG64 : sig
     (** [next_bounded_uint64 bound t] returns an unsigned 64bit integers in the range
         (0, bound) as well as the state of the generator advanced one step forward. *)
 end = struct
-    type t = {s : setseq; ustore : uint32 Common.store}
+    type t = {s : setseq; ustore : uint32 option}
     and setseq = {state : uint128; increment : uint128}
 
     let multiplier = Uint128.of_string "0x2360ed051fc65da44385df649fccf645"
@@ -87,5 +87,5 @@ end = struct
 
 
     let initialize seed =
-        {s = set_seed (Seed.SeedSequence.generate_64bit_state 4 seed); ustore = Common.Empty}
+        {s = set_seed (Seed.SeedSequence.generate_64bit_state 4 seed); ustore = None}
 end

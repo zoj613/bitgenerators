@@ -27,7 +27,7 @@ module Xoshiro256StarStar : sig
         it can be used to generate {m 2^{128}} non-overlapping subsequences for
         parallel computations. *)
 end = struct
-    type t = {s : state; ustore : uint32 Common.store}
+    type t = {s : state; ustore : uint32 option}
     and state = uint64 array
 
 
@@ -70,5 +70,5 @@ end = struct
 
 
     let initialize seed =
-        {s = Seed.SeedSequence.generate_64bit_state 4 seed; ustore = Common.Empty}
+        {s = Seed.SeedSequence.generate_64bit_state 4 seed; ustore = None}
 end
