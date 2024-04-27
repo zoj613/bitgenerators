@@ -44,7 +44,7 @@ module Philox : sig
     val jump : t -> t
     (** [jump t] is equivalent to {m 2^{128}} calls to {!Philox64.next_uint64}. *)
 end = struct
-    type t = {key: key; ctr : counter; buffer : buffer; buffer_pos : int; ustore : uint32 Common.store}
+    type t = {key: key; ctr : counter; buffer : buffer; buffer_pos : int; ustore : uint32 option}
     and counter = uint64 array
     and key = uint64 array
     and buffer = uint64 array
@@ -102,7 +102,7 @@ end = struct
     let initialize_ctr ~counter:(w, x, y, z) seed =
         {buffer_pos = 4;
          ctr = [|w; x; y; z|];
-         ustore = Common.Empty;
+         ustore = None;
          buffer = Array.make 4 Uint64.zero;
          key = Seed.SeedSequence.generate_64bit_state 2 seed}
 
