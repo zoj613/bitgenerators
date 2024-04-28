@@ -6,7 +6,7 @@
 open Stdint
 
 
-module PCG64 : sig
+module type PCG_TYPE = sig
     (** PCG-64 is a 128-bit implementation of O'Neill's permutation congruential
         generator. PCG-64 has a period of {m 2^{128}} and supports advancing an arbitrary
         number of steps as well as {m 2^{127}} streams.
@@ -23,16 +23,24 @@ module PCG64 : sig
     val advance : int128 -> t -> t
     (** [advance delta] Advances the underlying RNG as if [delta] draws have been made.
         The returned state is that of the generator [delta] steps forward. *)
+end
 
-    val next_bounded_uint64 : uint64 -> t -> uint64 * t
-    (** [next_bounded_uint64 bound t] returns an unsigned 64bit integers in the range
-        (0, bound) as well as the state of the generator advanced one step forward. *)
-end = struct
+
+module type FUNCTOR_SIG = sig
+    type t = {s : setseq; ustore : uint32 option}
+    and setseq = {state : uint128; increment : uint128}
+    val multiplier : uint128
+    val output : uint128 -> uint64
+    val next : setseq -> uint64 * setseq
+end
+
+
+module PCG64Impl = struct
     type t = {s : setseq; ustore : uint32 option}
     and setseq = {state : uint128; increment : uint128}
 
     let multiplier = Uint128.of_string "0x2360ed051fc65da44385df649fccf645"
-    let sixtythree = Uint32.of_int 63
+    let sixtythree = Uint32.of_int32 63l
 
     (* Uses the XSL-RR output function *)
     let output state =
@@ -45,14 +53,40 @@ end = struct
     let next {state; increment} =
         let state' = Uint128.(state * multiplier + increment) in
         output state', {state = state'; increment}
+end
+
+
+module PCG64DXSMImpl = struct
+    type t = {s : setseq; ustore : uint32 option}
+    and setseq = {state : uint128; increment : uint128}
+
+    let cheap_multiplier = Uint64.of_string "0xda942042e4dd58b5"
+    let multiplier = Uint128.of_uint64 cheap_multiplier 
+
+    let output state =
+        let hi0 = Uint128.(shift_right state 64 |> to_uint64) in
+        let lo = Uint128.(logor state one |> to_uint64) in
+        let hi1 = Uint64.(shift_right hi0 32 |> logxor hi0) in
+        let hi2 = Uint64.(hi1 * cheap_multiplier) in
+        let hi3 = Uint64.(shift_right hi2 48 |> logxor hi2) in
+        let hi4 = Uint64.(hi3 * lo) in
+        hi4
+
+
+    let next {state; increment} =
+        output state, {state = Uint128.(state * multiplier + increment); increment}
+end
+
+
+module Make (M : FUNCTOR_SIG) = struct
+    include M
 
 
     let next_uint64 t = match next t.s with
         | u, s -> u, {t with s}
-    
 
-    let next_uint32 t =
-        match Common.next_uint32 ~next:next t.s t.ustore with
+
+    let next_uint32 t = match Common.next_uint32 ~next:next t.s t.ustore with
         | u, s, ustore -> u, {s; ustore} 
 
 
@@ -83,3 +117,7 @@ end = struct
     let initialize seed =
         {s = set_seed (Seed.SeedSequence.generate_64bit_state 4 seed); ustore = None}
 end
+
+
+module PCG64DXSM : PCG_TYPE = Make (PCG64DXSMImpl)
+module PCG64 : PCG_TYPE = Make (PCG64Impl)
