@@ -7,13 +7,9 @@ module type S = sig
 end
 
 
-let make_bits (module M : S) =
-    let ss = SeedSequence.initialize [Stdint.Uint128.of_int 123456789] in
-    let t = ref (M.initialize ss) in
-    let bits () = match M.next_uint64 !t with
-        | (u, t') -> t := t'; u
-    in
-    bits
+let make_bits (module M : S) seed =
+    let t = ref (SeedSequence.initialize [Stdint.Uint128.of_int seed] |> M.initialize)
+    in (fun () -> t := (M.next_uint64 !t |> snd))
 
 
 let pairs = [
@@ -25,13 +21,14 @@ let pairs = [
 ]
 
 
-let make_fn (name, m) =
-    Core_bench.Bench.Test.create ~name:(name ^ ".next_uint64") (make_bits m)
+let make_fn seed (name, m) =
+    Core_bench.Bench.Test.create ~name:(name ^ ".next_uint64") (make_bits m seed)
 
 
 let () =
-    Stdlib.Random.init 123456789;
-    [Core_bench.Bench.Test.create ~name:"Stdlib.Random.bits64" (fun () -> Stdlib.Random.int64 Int64.max_int)] @
-    List.map make_fn pairs
+    let seed = 123456789 in
+    Stdlib.Random.init seed;
+    [Core_bench.Bench.Test.create ~name:"Stdlib.Random.bits64" Stdlib.Random.bits64] @
+    List.map (make_fn seed) pairs
     |> Core_bench.Bench.make_command
     |> Command_unix.run
