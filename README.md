@@ -32,19 +32,15 @@ SeedSequence.generate_64bit_state 4 seedseq |> Array.map Uint64.to_string
 Below is an example of using an initialized `PCG64` bitgenerator to generate 10 random
 floats:
 ```ocaml
-let rec get_floats n t acc = match n <= 0 with
-    | true -> List.rev acc, t
-    | false -> match PCG64.next_double t with
-        | u, t' -> get_floats (n - 1) t' (Float.to_string u :: acc)
-in
-get_floats 10 rng [] |> fst
-(** an example output from the above call would be:
-    - : string list =
-    ["0.913894299701"; "0.792148446413"; "0.949364012916"; "0.143892066375";
-     "0.70297277417"; "0.933940885237"; "0.338831577483"; "0.460820972876";
-     "0.61424098101"; "0.38294818093"] *)
+let func t = let u, t' = PCG64.next_double t in Some (u, t') in
+Seq.unfold func rng |> Seq.take 10 |> List.of_seq
+(* - : float list =
+   [0.227336022467169663; 0.316758339709752867; 0.797365457332734118;
+    0.676254670750974562; 0.391109550601909; 0.332813927866384529;
+    0.598308753587189823; 0.186734185603713354; 0.672756044014621302;
+    0.941802865269937173] *)
 ```
-Supported bitgenerators include: `PCG64`, `Philox64`, `Xoshiro256`, `ChaCha` and `SFC64`.
+Supported bitgenerators include: `PCG64`, `Philox4x64`, `Xoshiro256`, `ChaCha` and `SFC64`.
 
 ## Empirical Randomness Testing
 Running the test suite provided by [TestU01][6] on the supported generators is supported.
