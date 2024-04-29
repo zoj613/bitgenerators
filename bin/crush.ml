@@ -49,7 +49,7 @@ let make_int32 (module M : S) ~rev =
 let to_module = function
     | "xoshiro256" -> (module Xoshiro256 : S)
     | "pcg64" -> (module PCG64 : S)
-    | "philox64" -> (module Philox64 : S)
+    | "philox4x64" -> (module Philox4x64 : S)
     | "sfc64" -> (module SFC64 : S)
     | "chacha" -> (module ChaCha : S)
     | _ -> failwith "Unknown PRNG"
