@@ -15,30 +15,28 @@ A `SeedSequence` module based [on these ideas][5] is available to providing a hi
 can be used to initialize any of the supported PRNG's:
 ```ocaml
 open Bitgen
+open Stdint
 
-let seedseq = SeedSequence.initialize [] in
-let rng = PCG64.initialize seedseq in
+let seedseq = SeedSequence.initialize [Uint128.of_int 123456789]
+let rng = PCG64.initialize seedseq 
 ```
 It can also be used to initialize any custom PRNG using the module's `generate_64bit_state`
 and `generate_32bit_state` functions:
 ```ocaml
-open Stdint
-
 SeedSequence.generate_64bit_state 4 seedseq |> Array.map Uint64.to_string 
 (* - : string array =
-[|"4092832899716182828"; "16750193010238713092"; "6882587689755624013";
-  "3060663954516479482"|] *)
+   [|"5976902797103608158"; "11230215241436205182"; "1766494744865860250";
+     "7661475472903581292"|] *)
 ```
 Below is an example of using an initialized `PCG64` bitgenerator to generate 10 random
 floats:
 ```ocaml
-let func t = let u, t' = PCG64.next_double t in Some (u, t') in
-Seq.unfold func rng |> Seq.take 10 |> List.of_seq
+Seq.unfold (fun t -> Some (PCG64.next_double t)) rng |> Seq.take 10 |> List.of_seq
 (* - : float list =
-   [0.227336022467169663; 0.316758339709752867; 0.797365457332734118;
-    0.676254670750974562; 0.391109550601909; 0.332813927866384529;
-    0.598308753587189823; 0.186734185603713354; 0.672756044014621302;
-    0.941802865269937173] *)
+   [0.0277127392825169405; 0.90670005548402266; 0.881393554699734239;
+    0.624897275420908671; 0.790714811097940395; 0.825908014363094134;
+    0.841705835986455209; 0.471727947718599938; 0.95722877984939414;
+    0.946591532980609163] *)
 ```
 Supported bitgenerators include: `PCG64`, `Philox4x64`, `Xoshiro256`, `ChaCha` and `SFC64`.
 

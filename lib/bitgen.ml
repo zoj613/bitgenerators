@@ -16,8 +16,7 @@
         open Stdint
 
         let rng = SeedSequence.initialize [Uint128.of_int 12345] |> PCG64.initialize in
-        let func t = let u, t' = PCG64.next_double t in Some (u, t') in
-        Seq.unfold func rng |> Seq.take 10 |> List.of_seq
+        Seq.unfold (fun t -> Some (PCG64.next_double t)) rng |> Seq.take 10 |> List.of_seq
         (* - : float list =
            [0.227336022467169663; 0.316758339709752867; 0.797365457332734118;
             0.676254670750974562; 0.391109550601909; 0.332813927866384529;
