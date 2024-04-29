@@ -14,19 +14,15 @@
     {@ocaml[
         open Bitgen
         open Stdint
-        
-        let rec generate_10 i t acc = match i >= 10 with
-            | true -> List.rev acc, t
-            | false -> match PCG64.next_double t with
-                | v, t' -> generate_10 (i + 1) t' (v :: acc)
 
-        let rng = SeedSequence.initialize [] |> PCG64.initialize in
-        generate_10 0 rng [] |> fst
+        let rng = SeedSequence.initialize [Uint128.of_int 12345] |> PCG64.initialize in
+        let func t = let u, t' = PCG64.next_double t in Some (u, t') in
+        Seq.unfold func rng |> Seq.take 10 |> List.of_seq
         (* - : float list =
-            [0.227336022467169663; 0.316758339709752867; 0.797365457332734118;
-             0.676254670750974562; 0.391109550601909; 0.332813927866384529;
-             0.598308753587189823; 0.186734185603713354; 0.672756044014621302;
-             0.941802865269937173] *)
+           [0.227336022467169663; 0.316758339709752867; 0.797365457332734118;
+            0.676254670750974562; 0.391109550601909; 0.332813927866384529;
+            0.598308753587189823; 0.186734185603713354; 0.672756044014621302;
+            0.941802865269937173] *)
     ]}
 *)
 

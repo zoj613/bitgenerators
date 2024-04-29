@@ -32,7 +32,7 @@ module Philox : sig
                 SeedSequence.initialize []
                 |> SeedSequence.spawn 10
                 |> fst
-                |> List.map Philox64.initialize
+                |> List.map Philox4x64.initialize
         ]} *)
 
     include Common.BITGEN
@@ -43,7 +43,7 @@ module Philox : sig
         initiale state of the generator's [key].*)
 
     val jump : t -> t
-    (** [jump t] is equivalent to {m 2^{128}} calls to {!Philox64.next_uint64}. *)
+    (** [jump t] is equivalent to {m 2^{128}} calls to {!Philox4x64.next_uint64}. *)
 
     val advance : uint64 * uint64 * uint64 * uint64 -> t -> t
     (** [advance n] Advances the generator forward as if [n] draws have been made,
