@@ -4,15 +4,11 @@ open Bitgen
 
 let test_advance _ =
     let open Stdint in
-    (* manually advance PCG64 n times and return the (n+1)'th random value. *)
-    let rec advance_n i t n = match i >= n with
-        | true -> PCG64.next_uint64 t |> fst |> Uint64.to_string
-        | false -> advance_n (i + 1) (PCG64.next_uint64 t |> snd) n
-    in
     let t = SeedSequence.initialize [Uint128.of_int 12345] |> PCG64.initialize in 
+    let advance n = Seq.(iterate (fun s -> PCG64.next_uint64 s |> snd) t |> drop n |> uncons |> Option.get |> fst) in
     assert_equal
-        (PCG64.advance (Int128.of_int 12344) t |> PCG64.next_uint64 |> fst |> Uint64.to_string)
-        (advance_n 0 t 12344)
+        (PCG64.advance (Int128.of_int 100) t |> PCG64.next_uint64 |> fst |> Uint64.to_string)
+        (advance 100 |> PCG64.next_uint64 |> fst |> Uint64.to_string)
         ~printer:(fun x -> x)
 
 

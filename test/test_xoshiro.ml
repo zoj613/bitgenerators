@@ -15,10 +15,9 @@ let test_bounded_u64 _ = Testconf.test_bounded_u64 (module Xoshiro256)
 
 
 let test_jump _ =
-    let ss = SeedSequence.initialize [] in
-    let t = Xoshiro256.initialize ss |> Xoshiro256.jump in
+    let t = SeedSequence.initialize [] |> Xoshiro256.initialize |> Xoshiro256.jump in
     let t' = Xoshiro256.jump t in
-    assert_bool "" ((Xoshiro256.next_double t |> fst) <> (Xoshiro256.next_double t' |> fst))
+    assert_bool "" ((Xoshiro256.next_uint64 t |> fst) <> (Xoshiro256.next_uint64 t' |> fst))
 
 
 let tests = [
