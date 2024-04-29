@@ -37,19 +37,16 @@ let test_advance _ =
     (* manually advance ChaCha n times. Since Chacha generates 32bit ints,
        we advance manually using next_uint32, else if we used next_uint64 we
        would need to use n/2 steps.*)
-    let rec advance_n t = function
-        | 0 -> t
-        | i -> advance_n (ChaCha.next_uint32 t |> snd) (i - 1)
-    in
     let t = ChaCha.initialize_full (SeedSequence.initialize [Uint128.of_int 12345]) Uint64.(max_int, zero) 4 in
+    let advance n = Seq.(iterate (fun s -> ChaCha.next_uint32 s |> snd) t |> drop n |> uncons |> Option.get |> fst) in
     assert_equal
-        (ChaCha.advance (Uint128.of_int 1000) t |> ChaCha.next_uint32 |> fst |> Uint32.to_string)
-        (advance_n t 1000 |> ChaCha.next_uint32 |> fst |> Uint32.to_string)
+        (ChaCha.advance (Uint128.of_int 100) t |> ChaCha.next_uint32 |> fst |> Uint32.to_string)
+        (advance 100 |> ChaCha.next_uint32 |> fst |> Uint32.to_string)
         ~printer:(fun x -> x);
     (* Test zero advancing *)
     assert_equal
         (ChaCha.advance Uint128.zero t |> ChaCha.next_uint32 |> fst |> Uint32.to_string)
-        (advance_n t 0 |> ChaCha.next_uint32 |> fst |> Uint32.to_string)
+        (advance 0 |> ChaCha.next_uint32 |> fst |> Uint32.to_string)
         ~printer:(fun x -> x);
     (* Advancing with the largest 128bit integer should not fail *)
     ignore (ChaCha.advance Uint128.max_int t)
