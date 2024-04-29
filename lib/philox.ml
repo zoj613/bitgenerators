@@ -5,12 +5,13 @@
 open Stdint
 
 module Philox : sig
-    (** Philox64 is a 64-bit PRNG that uses a counter-based design based on weaker
-        (and faster) versions of cryptographic functions. Instances using different
-        values of the key produce independent sequences. Philox has a period of
-        {m 2^{256} - 1} and supports arbitrary advancing and jumping the sequence
-        in increments of {m 2^{128}}. These features allow multiple non-overlapping
-        sequences to be generated.
+    (** Philox4x64 (a mnemonic for Product HI LO Xor) is a 64-bit PRNG that uses a
+        counter-based design based on weaker (and faster) versions of cryptographic
+        functions. Instances using different values of the key produce independent
+        sequences. Philox has a period of {m 2^{256} - 1} and supports arbitrary
+        advancing and jumping the sequence in increments of {m 2^{128}}. These
+        features allow multiple non-overlapping sequences to be generated. Philox's
+        round function is applied 10 times each time the PRNG is advanced forward.
 
         The Philox state vector consists of a 256-bit value encoded as a 4-element
         unsigned 64-bit tuple and a 128-bit value encoded as a 2-element unsigned
@@ -55,22 +56,21 @@ end = struct
     and buffer = uint64 array
 
     let rh0, rh1 = Uint128.(of_string "0xD2E7470EE14C6C93", of_string "0xCA5A826395121157")
-    let k0, k1 = Uint64.(of_string "0x9E3779B97F4A7C15", of_string "0xBB67AE8584CAA73B")
+    let k0, k1 = Uint64.(of_string "0x9E3779B97F4A7C15", of_string "0xBB67AE8584CAA73B")  (* golden ratio and sqrt(3)-1 *)
 
     let mulhilo64 a b =
         let p = Uint128.(a * of_uint64 b) in
         Uint128.[|shift_right p 64 |> to_uint64; to_uint64 p|]
 
 
-    let ten_rounds ctr key =
-        let rec loop c k r =
-            let c' = match mulhilo64 rh0 c.(0), mulhilo64 rh1 c.(2) with
-                | x, y -> Uint64.[|logxor y.(0) c.(1) |> logxor k.(0); y.(1);
-                                  logxor x.(0) c.(3) |> logxor k.(1); x.(1)|]
-            in match r with
-            | 0 -> c'
-            | i -> loop c' Uint64.[|k.(0) + k0; k.(1) + k1|] (i - 1)
-        in loop ctr key 9
+    (* Apply Philox's round function (r + 1) rounds for r >= 2. *)
+    let rec rounds c k r =
+        let c' = match mulhilo64 rh0 c.(0), mulhilo64 rh1 c.(2) with
+            | x, y -> Uint64.[|logxor y.(0) c.(1) |> logxor k.(0); y.(1);
+                              logxor x.(0) c.(3) |> logxor k.(1); x.(1)|]
+        in match r with
+        | 0 -> c'
+        | i -> rounds c' Uint64.[|k.(0) + k0; k.(1) + k1|] (i - 1)
 
 
     let next c =
@@ -86,7 +86,7 @@ end = struct
         | true -> t.buffer.(t.buffer_pos), {t with buffer_pos = t.buffer_pos + 1}
         | false ->
             let ctr = next t.ctr in
-            let buffer = ten_rounds ctr t.key in
+            let buffer = rounds ctr t.key 9 in  (* perform 10 rounds *)
             buffer.(0), {t with ctr; buffer; buffer_pos = 1}
 
 

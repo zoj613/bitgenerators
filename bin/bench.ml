@@ -20,7 +20,7 @@ let pairs = [
     "PCG64", (module PCG64: S);
     "SFC64", (module SFC64: S);
     "Xoshiro256", (module Xoshiro256: S);
-    "Philox64", (module Philox64: S);
+    "Philox4x64", (module Philox4x64: S);
     "ChaCha", (module ChaCha: S);
 ]
 

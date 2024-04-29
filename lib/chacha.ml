@@ -68,11 +68,10 @@ end = struct
     let indices = [|(0, 4, 8, 12); (1, 5, 9, 13); (2, 6, 10, 14); (3, 7, 11, 15);
                     (0, 5, 10, 15); (1, 6, 11, 12); (2, 7, 8, 13); (3, 4, 9, 14)|]
 
-    let core block n =
-        let rec loop block0 = function
-            | 0 -> block0
-            | i -> loop (Array.fold_left quarter_round block0 indices) (i - 1)
-        in loop block n
+
+    let rec core block = function
+        | 0 -> block
+        | i -> core (Array.fold_left quarter_round block indices) (i - 1)
 
 
     let mask = Uint32.(max_int |> to_uint64)
