@@ -1,12 +1,12 @@
 (executable
- (public_name crush)
+ (name crush)
  (modules crush)
  (ocamlopt_flags (:standard -O3))
  (libraries bitgenerators testu01))
 
 
 (executable
- (public_name bench)
+ (name bench)
  (modules bench)
  (ocamlopt_flags (:standard -O3))
  (libraries bitgenerators core_bench core_unix.command_unix))
