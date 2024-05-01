@@ -31,14 +31,45 @@ SeedSequence.generate_64bit_state 4 seedseq |> Array.map Uint64.to_string
 Below is an example of using an initialized `PCG64` bitgenerator to generate 10 random
 floats:
 ```ocaml
-Seq.unfold (fun t -> Some (PCG64.next_double t)) rng |> Seq.take 10 |> List.of_seq
-(* - : float list =
-   [0.0277127392825169405; 0.90670005548402266; 0.881393554699734239;
-    0.624897275420908671; 0.790714811097940395; 0.825908014363094134;
-    0.841705835986455209; 0.471727947718599938; 0.95722877984939414;
-    0.946591532980609163] *)
+let rec compute t acc = function
+    | 0 -> List.rev acc, t
+    | i -> let u, t' = PCG64.next_uint64 t in compute t' (Uint64.to_string u :: acc) (i - 1)
+in compute rng [] 10 |> fst
+(* - : string list =
+   ["511209809126027580"; "16725663875132018381"; "16258841331763118777";
+    "11527320112047894150"; "14586113755615299794"; "15235313769381631730";
+    "15526732141789886995"; "8701844723981253752"; "17657754321871037678";
+    "17461531751233692673"] *)
 ```
-Supported bitgenerators include: `PCG64`, `Philox4x64`, `Xoshiro256`, `ChaCha` and `SFC64`.
+One can use `SeedSequence.spawn` to generate many independent bitgenerators
+that can be used in parallel computations in a _reproducible_ manner:
+```ocaml
+let next_float t = Some (PCG64.next_double t) in
+let compute t = Seq.unfold next_float t |> Seq.take 6 |> List.of_seq in
+SeedSequence.spawn 4 seedseq
+|> fst
+|> List.map PCG64.initialize
+|> List.map (fun x -> Domain.spawn (fun () -> compute x))
+|> List.map Domain.join
+(* - : float list list =
+[[0.407206833679825242; 0.189731803785485376; 0.564081542309661343;
+  0.88682304196963746; 0.45229844727129942; 0.701372920128140565];
+ [0.580212874721654503; 0.0892784737148068; 0.511665172650789257;
+  0.931271866226736411; 0.928633846357239; 0.173606152636579414];
+ [0.171815817392286574; 0.585509477690361213; 0.837844400599859318;
+  0.569340928519763145; 0.680737776645169879; 0.620841051213270267];
+ [0.736203907003532887; 0.479879743687943505; 0.506036578793879;
+  0.596207202439843376; 0.792829648424435; 0.540970530700028429]] *)
+```
+Another pattern to generate independent _non-overlapping_ instances of a bitgenerator
+for parallel applications is to use `jump` or `advance` functions for PRNG's that support such functions:
+```ocaml
+Philox4x64.initialize seedseq |> Seq.iterate Philox4x64.jump |> Seq.take 5 |> List.of_seq 
+(* - : Philox4x64.t list = [<abstr>; <abstr>; <abstr>; <abstr>; <abstr>] *)
+```
+The resulting list of bitgenerators produce non-overlapping streams of random numbers.
+
+Supported bitgenerators include: `PCG64`, `Philox4x64`, `Xoshiro256`, `ChaCha` and `SFC64`. More coming soon!
 
 ## Empirical Randomness Testing
 Running the test suite provided by [TestU01][6] on the supported generators is supported.
