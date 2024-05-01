@@ -59,14 +59,14 @@ end = struct
     let next_double t = Common.next_double ~nextu64:next_uint64 t
 
 
-    let advance delta ({s = {state; increment}; _} as t) =
+    let advance delta {s = {state; increment}; _} =
         let open Uint128 in
         let rec lcg d am ap cm cp =  (* advance state using LCG method *)
             match d = zero, logand d one = one with
             | true, _ -> am * state + ap
             | false, true -> lcg (shift_right d 1) (am * cm) (ap * cm + cp) (cm * cm) (cp * (cm + one))
             | false, false -> lcg (shift_right d 1) am ap (cm * cm) (cp * (cm + one))
-        in {t with s = {state = lcg (Uint128.of_int128 delta) one zero multiplier increment; increment}}
+        in {s = {state = lcg (Uint128.of_int128 delta) one zero multiplier increment; increment}; ustore = None}
 
 
     let set_seed seed =

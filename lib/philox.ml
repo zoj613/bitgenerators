@@ -102,9 +102,11 @@ end = struct
 
 
     let jump t =
-        let c2' = Uint64.(t.ctr.(2) + one) in match Uint64.(c2' = zero) with
-        | true -> {t with ctr = [|t.ctr.(0); t.ctr.(1); c2'; Uint64.(t.ctr.(3) + one)|]}
-        | false -> {t with ctr = [|t.ctr.(0); t.ctr.(1); c2'; t.ctr.(3)|]}
+        let c2' = Uint64.(t.ctr.(2) + one) in
+        let ctr = match Uint64.(c2' = zero) with
+            | true -> [|t.ctr.(0); t.ctr.(1); c2'; Uint64.(t.ctr.(3) + one)|]
+            | false -> [|t.ctr.(0); t.ctr.(1); c2'; t.ctr.(3)|]
+        in {t with ctr; ustore = None; buffer_pos = 4}
 
 
     let advance (d0, d1, d2, d3) t =
@@ -122,7 +124,7 @@ end = struct
         let c1', p1 = aux d1 t.ctr.(1) p0 in
         let c2', p2 = aux d2 t.ctr.(2) p1 in
         let c3', _ = aux d3 t.ctr.(3) p2 in
-        {t with ctr = [|c0'; c1'; c2'; c3'|]}
+        {t with ctr = [|c0'; c1'; c2'; c3'|]; ustore = None; buffer_pos = 4}
 
 
     let initialize_ctr ~counter:(w, x, y, z) seed =

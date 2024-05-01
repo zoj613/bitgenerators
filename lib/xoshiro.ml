@@ -69,7 +69,7 @@ end = struct
             | true, _ -> acc0, acc1 
             | false, true -> loop (b + 1) j (Array.map2 Uint64.logxor acc0 acc1, (next acc1 |> snd))
             | false, false -> loop (b + 1) j (acc0, (next acc1 |> snd))
-        in {t with s = Array.fold_right (loop 0) jump (zeros, t.s) |> fst}
+        in {s = Array.fold_right (loop 0) jump (zeros, t.s) |> fst; ustore = None}
 
 
     let initialize seed =
