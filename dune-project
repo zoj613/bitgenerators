@@ -30,8 +30,12 @@
    (bisect_ppx
      (and :dev (>= 2.5.0) :with-test))
    (ounit2 :with-test)
-   (csv :with-test))
+   (csv :with-test)
+   (core_bench
+     (and :dev (>= 0.16.0)))
+   (testu01 :dev))
  (tags
-  ("scientific computing" "psuedo-random numbers")))
+  ("scientific computing" "psuedo-random numbers"))
+ (conflicts "ocaml-option-bytecode-only"))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
