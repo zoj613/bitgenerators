@@ -10,6 +10,17 @@ numpy's bitgenerator interface in a purely functional manner for Ocaml users.
 ## Documentation
 Comprehensive documentation of available features is available at the project's [site][4].
 
+## Installation
+The library can be installed using `opam` with the following commands:
+```shell
+opam update
+opam install bitgenerators
+```
+Alternatively, one can install the development version using the latest git commit:
+```shell
+opam pin add bitgenerators git+https://github.com/zoj613/bitgenerators
+```
+
 ## Usage
 A `SeedSequence` module based [on these ideas][5] is available to providing a high quality seed sequence that
 can be used to initialize any of the supported PRNG's:
