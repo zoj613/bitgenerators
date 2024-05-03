@@ -52,6 +52,7 @@ let to_module = function
     | "philox4x64" -> (module Philox4x64 : S)
     | "sfc64" -> (module SFC64 : S)
     | "chacha" -> (module ChaCha : S)
+    | "lxm" -> (module LXM : S)
     | _ -> failwith "Unknown PRNG"
 
 
