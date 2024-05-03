@@ -33,3 +33,4 @@ module Xoshiro256 = Xoshiro.Xoshiro256StarStar
 module Philox4x64 = Philox.Philox
 module ChaCha = Chacha.ChaCha128Counter
 module LXM = Lxm.LXM
+module EFIIX64x48 = Efiix.EFIIX64

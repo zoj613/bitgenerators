@@ -9,7 +9,7 @@ let () =
         Test_philox.tests @
         Test_xoshiro.tests @
         Test_chacha.tests @
-        Test_lxm.tests
-
+        Test_lxm.tests @
+        Test_efiix.tests
     in
     run_test_tt_main suite

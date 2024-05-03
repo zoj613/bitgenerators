@@ -18,7 +18,8 @@ let pairs = [
     "Xoshiro256", (module Xoshiro256: S);
     "Philox4x64", (module Philox4x64: S);
     "ChaCha", (module ChaCha: S);
-    "LXM", (module LXM: S)
+    "LXM", (module LXM: S);
+    "EFIIX64x48", (module EFIIX64x48: S);
 ]
 
 
