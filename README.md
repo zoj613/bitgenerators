@@ -84,12 +84,10 @@ Supported bitgenerators include: `PCG64`, `Philox4x64`, `Xoshiro256`, `ChaCha` a
 
 ## Empirical Randomness Testing
 Running the test suite provided by [TestU01][6] on the supported generators is supported.
-To build the test executable one needs to run `dune build bin`. To see the available
-command options run `dune exec -- crush -help`. Below is a sample output from running
-`dune exec -- crush pcg64` to test `PCG64` on the Small Crush test suite:
+To see the available commandline options run `dune exec -- ./bin/crush.exe -help`.
+Below is a sample output from running `dune exec -- ./bin/crush.exe -name smallcrush pcg64`
+to test `PCG64` on the Small Crush test suite:
 ```shell
-$ dune exec -- crush pcg64
-
 ========= Summary results of SmallCrush =========
 
  Version:          TestU01 1.2.3
@@ -101,8 +99,8 @@ $ dune exec -- crush pcg64
 ```
 ## Benchmarks
 A utility to compare the performance of each bitgenerator's `next_uint64` function is provided.
-To compile the benchmark executor run `dune build bin`, and then run it using `dune exec -- bench`.
-Once the benchmark run has completed, a summary table will be displayed in stdout.
+Run the microbenchmark using `dune exec -- ./bin/bench.exe` and once it has completed,
+a summary table will be displayed in stdout.
 
 
 [1]: https://codecov.io/gh/zoj613/bitgenerators/graph/badge.svg?token=KOOG2Y1SH5
