@@ -80,7 +80,7 @@ Philox4x64.initialize seedseq |> Seq.iterate Philox4x64.jump |> Seq.take 5 |> Li
 ```
 The resulting list of bitgenerators produce non-overlapping streams of random numbers.
 
-Supported bitgenerators include: `PCG64`, `Philox4x64`, `Xoshiro256`, `ChaCha` and `SFC64`. More coming soon!
+Supported bitgenerators include: `PCG64`, `Philox4x64`, `Xoshiro256`, `ChaCha`, `SFC64`, `LXM` and `EFIIX64x48`. More coming soon!
 
 ## Empirical Randomness Testing
 Running the test suite provided by [TestU01][6] on the supported generators is supported.
