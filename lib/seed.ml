@@ -22,14 +22,15 @@ let mixhashmix x y const =
     const', Uint32.(logxor (shift_right res xshift) res)
 
 
-let mask32 = Uint128.of_int 0xffffffff
+let mask32 = Uint32.max_int |> Uint128.of_uint32
 (* Convert a list of unsigned 128bit integers into an array of unsigned 32 bit integers
    by splitting each 128bit integer into a sequence of 32bit ints and concatenating the result.*)
 let to_u32_array l =
-    let f n = Some Uint128.(logand n mask32 |> to_uint32, shift_right n 32) in
-    let split n = Seq.unfold f n |> Seq.take_while (fun x -> Uint32.(x > zero))
-                 |> (fun s -> if Seq.is_empty s then Seq.(return Uint32.zero) else s)
-    in List.to_seq l |> Seq.concat_map split |> Array.of_seq
+    let open Uint128 in
+    Seq.concat_map (fun n -> if n = zero then Seq.return Uint32.zero else
+      Seq.unfold (function
+      | n when n > zero -> Some (logand n mask32 |> to_uint32, shift_right n 32)
+      | _ -> None) n) (List.to_seq l) |> Array.of_seq
 
 
 (* Return an integer with 128 random bits by combining 2 integers with 64 random bits. *)
@@ -91,24 +92,30 @@ module SeedSequence : sig
         the bit stream of [t]. *)
 end = struct
 
-    type t = {
-        entropy : uint128 list;
-        spawn_key : uint128 list;
-        children_spawned : int;
-        pool : uint32 array;
-    }
+    type t = {entropy : uint128 list; spawn_key : uint128 list;
+              children_spawned : int; pool : uint32 array}
 
     let entropy t = t.entropy
+
 
     let children_spawned t = t.children_spawned
 
 
-    let mix_entropy pool_size entropy =
+    let assembled_entropy ~entropy ~spawn_key pool_size =
+        let run, spawn = to_u32_array entropy, to_u32_array spawn_key in
+        if Array.(length spawn > 0 && length run < pool_size) then
+            Array.concat [run; Array.make (pool_size - Array.length run) Uint32.zero; spawn]
+        else Array.concat [run; spawn]
+
+
+    let mix ~entropy ~spawn_key pool_size =
+        let entropy' = assembled_entropy ~entropy ~spawn_key pool_size in
+
         (* Add in entropy up to the pool size. *)
-        let values, leftover = match Array.length entropy, pool_size with
-            | le, lp when le > lp -> entropy, le - lp
-            | le, lp -> Array.append entropy (Array.init (lp - le) (fun _ -> Uint32.zero)), 0 in
-        let hash, pool = Array.fold_left_map hashmix (Uint32.of_int 0x43b0d7e5) values in
+        let values, leftover = match Array.length entropy', pool_size with
+            | le, lp when le > lp -> entropy', le - lp
+            | le, lp -> Array.append entropy' (Array.init (lp - le) (fun _ -> Uint32.zero)), 0 in
+        let hash, pool = Array.fold_left_map hashmix (Uint32.of_int32 0x43b0d7e5l) values in
 
         (* mix all bits together so later bits can affect earlier bits *)
         let indices = Array.init pool_size (fun x -> x) in
@@ -120,47 +127,36 @@ end = struct
         if leftover > 0 then
             let leftover_indices = (Array.init leftover (fun i -> pool_size + i)) in
             let f (acc0, acc1) j = Array.fold_left_map
-                (fun c i -> mixhashmix entropy.(j) acc1.(i) c) acc0 indices in
+                (fun c i -> mixhashmix entropy'.(j) acc1.(i) c) acc0 indices in
             Array.fold_left f (hash', pool') leftover_indices |> snd
         else pool'
 
 
-    let assembled_entropy entropy spawn_key pool_size =
-        let run_entropy = to_u32_array entropy
-        and spawn_entropy = to_u32_array spawn_key in
-        let l = match Array.(length spawn_entropy > 0 && length run_entropy < pool_size) with
-            | true -> Array.init (pool_size - Array.length run_entropy) (fun _ -> Uint32.zero)
-            | false -> [||]
-        in Array.concat [run_entropy; l; spawn_entropy]
-
-
     let initialize ?(spawn_key=[]) ?(pool_size=4) entropy =
         (* 128 bits of system entropy are used when entropy is not provided *)
-        let entropy' = if List.compare_length_with entropy 0 = 0 then [randbits128 ()] else entropy in
-        let assembled = assembled_entropy entropy' spawn_key pool_size in
-        {spawn_key; entropy = entropy'; children_spawned = 0; pool = mix_entropy pool_size assembled}
+        let entropy = if List.compare_length_with entropy 0 = 0 then [randbits128 ()] else entropy in
+        {spawn_key; entropy; children_spawned = 0; pool = mix pool_size ~entropy ~spawn_key}
 
 
     let spawn n t =
-        let f i =
-            let psize = Array.length t.pool
-            and spawn_key = t.spawn_key @ [i] in
-            let pool = assembled_entropy t.entropy spawn_key psize |> mix_entropy psize in
-            Some ({t with pool; spawn_key; children_spawned = 0}, Uint128.(i + one))
-        in Seq.unfold f Uint128.(of_int n) |> Seq.take n |> List.of_seq,
+        List.init n (fun x -> Uint128.of_int x)
+        |> List.map (fun i -> match t.spawn_key @ [i] with
+            | spawn_key -> {t with spawn_key; children_spawned = 0;
+                            pool = Array.length t.pool |> mix ~entropy:t.entropy ~spawn_key}),
         {t with children_spawned = t.children_spawned + n}
 
 
-    let init_b, mult_b = Uint32.(of_int 0x8b51f9dd, of_int 0x58f38ded)
+    let init_b, mult_b = Uint32.(of_int 0x8b51f9dd, of_int32 0x58f38dedl)
+
 
     let generate_32bit_state n_words t =
-        let f acc a =
-            let a' = Uint32.(logxor a acc)
-            and acc' = Uint32.(acc * mult_b) in
-            let a'' = Uint32.(a' * acc') in
-            acc', Uint32.(shift_right a'' xshift |> logxor a'')
-        in Array.to_seq t.pool |> Seq.cycle |> Seq.take n_words
-           |> Array.of_seq |> Array.fold_left_map f init_b |> snd
+        Seq.unfold (fun (seq, acc) -> match Seq.uncons seq, Uint32.(acc * mult_b) with
+          | Some (a, seq'), acc' -> 
+              let a' = Uint32.(logxor a acc |> mul acc') in
+              Some Uint32.(shift_right a' xshift |> logxor a', (seq', acc'))
+          | None, _ -> None) (Array.to_seq t.pool |> Seq.cycle |> Seq.take n_words, init_b)
+          |> Array.of_seq
+
 
     (* 64 bit state array is obtained by combining elements i and (i + 1) of the [o] array
        to create a 64 bit integer using the formula o.(k + 1) << 32 | o.(k), where k = i * 2
