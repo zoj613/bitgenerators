@@ -29,6 +29,7 @@ module SeedSequence = Seed.SeedSequence
 
 module SFC64 = Sfc.SFC64
 module PCG64 = Pcg.PCG64
+module PCG64DXSM = Pcg.PCG64DXSM
 module Xoshiro256 = Xoshiro.Xoshiro256StarStar
 module Philox4x64 = Philox.Philox
 module ChaCha = Chacha.ChaCha128Counter

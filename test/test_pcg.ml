@@ -18,7 +18,13 @@ let test_pcg_datasets _ =
         (Sys.getcwd () ^ "/../../../test/data/pcg64-testset-1.csv");
     Testconf.bitgen_groundtruth
         (module PCG64)
-        (Sys.getcwd () ^ "/../../../test/data/pcg64-testset-2.csv")
+        (Sys.getcwd () ^ "/../../../test/data/pcg64-testset-2.csv");
+    Testconf.bitgen_groundtruth
+        (module PCG64DXSM)
+        (Sys.getcwd () ^ "/../../../test/data/pcg64dxsm-testset-1.csv");
+    Testconf.bitgen_groundtruth
+        (module PCG64DXSM)
+        (Sys.getcwd () ^ "/../../../test/data/pcg64dxsm-testset-2.csv")
 
 
 let test_bounded_u64 _ = Testconf.test_bounded_u64 (module PCG64)
