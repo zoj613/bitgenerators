@@ -7,7 +7,7 @@ let test_advance _ =
     let t = SeedSequence.initialize [Uint128.of_int 12345] |> PCG64.initialize in 
     let advance n = Seq.(iterate (fun s -> PCG64.next_uint64 s |> snd) t |> drop n |> uncons |> Option.get |> fst) in
     assert_equal
-        (PCG64.advance (Int128.of_int 100) t |> PCG64.next_uint64 |> fst |> Uint64.to_string)
+        (PCG64.advance Uint64.(of_int 0, of_int 100) t |> PCG64.next_uint64 |> fst |> Uint64.to_string)
         (advance 100 |> PCG64.next_uint64 |> fst |> Uint64.to_string)
         ~printer:(fun x -> x)
 
