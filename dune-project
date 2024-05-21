@@ -24,7 +24,6 @@
  (depends
    (ocaml (>= 4.14.0))
    dune
-   ctypes
    stdint
    (odoc :with-doc)
    (bisect_ppx

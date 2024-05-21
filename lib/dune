@@ -1,7 +1,7 @@
 (library
  (name bitgen)
  (public_name bitgenerators)
- (libraries stdint ctypes)
+ (libraries stdint)
  (ocamlopt_flags (:standard -O3))
  (instrumentation (backend bisect_ppx)))
 
