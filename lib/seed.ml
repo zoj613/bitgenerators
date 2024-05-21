@@ -6,7 +6,7 @@
 open Stdint
 
 
-let xshift = Ctypes.sizeof Ctypes_static.uint32_t * 8 / 2
+let xshift = Uint32.bits / 2
 let mult_a, mult_l, mult_r = Uint32.(of_int 0x931e8875, of_int 0xca01f9dd, of_int 0x4973f715)
 
 let hashmix const value =
